@@ -1,0 +1,10 @@
+{
+  "name": "@vocalis/gateway",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "cargo run -p vocalis-gateway",
+    "build": "cargo build -p vocalis-gateway --release",
+    "test": "cargo test -p vocalis-gateway"
+  }
+}
