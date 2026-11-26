@@ -1,0 +1,16 @@
+[package]
+name = "vocalis-store"
+description = "Vocalis local history store (SQLCipher, FTS5)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+rusqlite = { version = "0.37", features = ["bundled-sqlcipher-vendored-openssl", "backup"] }
+serde.workspace = true
+thiserror.workspace = true
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+tempfile = "3"
