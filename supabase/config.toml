@@ -8,7 +8,7 @@ schemas = ["public"]
 
 [db]
 port = 54322
-major_version = 16
+major_version = 17
 
 [studio]
 port = 54323
@@ -22,7 +22,7 @@ enable_refresh_token_rotation = true
 enable_signup = true
 
 [auth.email]
-enable_signup = true
+enabled = true
 enable_confirmations = false
 double_confirm_changes = true
 

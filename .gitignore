@@ -12,3 +12,7 @@ coverage/
 apps/desktop/src-tauri/gen/
 supabase/.temp/
 storybook-static/
+supabase/.branches/
+test-results/
+playwright-report/
+*.tsbuildinfo
