@@ -5,8 +5,10 @@
 
 pub mod auth;
 pub mod config;
+pub mod dictate;
 pub mod error;
 pub mod logging;
+pub mod providers;
 
 use std::sync::Arc;
 
@@ -25,18 +27,34 @@ use error::ApiError;
 pub struct AppState {
     pub config: Arc<Config>,
     pub verifier: Arc<auth::Verifier>,
+    pub stt: Arc<providers::SttChain>,
+    pub cleanup: Option<Arc<dyn providers::Cleanup>>,
 }
 
 impl AppState {
+    /// Production wiring: verifier and providers from the config and environment.
     pub fn new(config: Config) -> Self {
         let verifier = auth::Verifier::new(config.supabase_url.as_deref(), config.jwt_secret.as_deref());
-        Self::with_verifier(config, verifier)
+        let (stt, cleanup) = providers::from_env();
+        Self::with_parts(config, verifier, stt, cleanup)
     }
 
+    /// No speech providers: for tests that only exercise auth and routing.
     pub fn with_verifier(config: Config, verifier: auth::Verifier) -> Self {
+        Self::with_parts(config, verifier, providers::SttChain::new(vec![]), None)
+    }
+
+    pub fn with_parts(
+        config: Config,
+        verifier: auth::Verifier,
+        stt: providers::SttChain,
+        cleanup: Option<Arc<dyn providers::Cleanup>>,
+    ) -> Self {
         Self {
             config: Arc::new(config),
             verifier: Arc::new(verifier),
+            stt: Arc::new(stt),
+            cleanup,
         }
     }
 }
@@ -69,7 +87,7 @@ async fn meta(State(s): State<AppState>) -> Json<Meta> {
         min_client_version: c.min_client_version.clone(),
         latest_client_version: c.latest_client_version.clone(),
         free_words_per_week: vocalis_core::product::FREE_WORDS_PER_WEEK,
-        features: json!({ "liveText": false, "commands": false, "localStt": false }),
+        features: json!({ "dictation": true, "liveText": false, "commands": false, "localStt": false }),
         providers: json!({
             "stt": { "groq": health(c.groq_configured), "deepgram": health(c.deepgram_configured) },
             "llm": { "anthropic": health(c.anthropic_configured) }
@@ -91,6 +109,7 @@ async fn dictate_retry(_caller: Caller, body: Bytes) -> Result<Json<Value>, ApiE
 pub fn app(state: AppState) -> Router {
     let authed = Router::new()
         .route("/v1/me", get(me))
+        .route("/v1/dictate", get(dictate::handler))
         .route("/v1/dictate/retry", post(dictate_retry))
         .route_layer(middleware::from_fn_with_state(state.clone(), auth::require_auth));
 

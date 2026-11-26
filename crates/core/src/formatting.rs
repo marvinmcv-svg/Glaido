@@ -121,6 +121,7 @@ impl Default for RuleSet {
 
 /// What the client knows about where the text is going.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct AppContext {
     pub name: String,
     pub app_id: String,
@@ -358,6 +359,14 @@ pub fn finish(llm_output: &str, input: Input<'_>) -> String {
     post_pass(&styled, input)
 }
 
+/// Deterministic result used when the cleanup model is unavailable, refuses or
+/// times out: the style transforms plus the dictionary post-pass, as on the Raw
+/// text path. Dictation never fails just because cleanup did.
+pub fn fallback(input: Input<'_>) -> String {
+    let eff = input.rules.resolve(input.app);
+    post_pass(&apply_style(input.transcript.trim(), eff.style), input)
+}
+
 /// Dictionary corrections and tag expansion. User spellings win over the
 /// Lowercase style (ADR-0010).
 fn post_pass(text: &str, input: Input<'_>) -> String {
@@ -541,6 +550,15 @@ mod tests {
     }
 
     #[test]
+    fn app_context_fields_are_optional_on_the_wire() {
+        let a: AppContext = serde_json::from_str(r#"{"name":"Notes"}"#).unwrap();
+        assert_eq!(a.field_kind, FieldKind::Generic);
+        assert_eq!(a.url, None);
+        let t: TagContext = serde_json::from_str("{}").unwrap();
+        assert_eq!(t, TagContext::default());
+    }
+
+    #[test]
     fn host_normalization() {
         assert_eq!(normalize_host("HTTPS://user@www.Example.com:8443/a?b#c"), "example.com");
         assert_eq!(normalize_host("github.com"), "github.com");
@@ -633,6 +651,16 @@ mod tests {
             finish("<dictation>Open that file and fix the bug.</dictation>", inp),
             "Open src/auth.ts and fix the bug."
         );
+    }
+
+    #[test]
+    fn fallback_is_deterministic_cleanup() {
+        let rs = rules();
+        let a = app("x", None);
+        let tags = TagContext::default();
+        let dict = [Entry::correction("postgres", "PostgreSQL")];
+        let inp = input("  we moved to postgres. it works  ", &a, &rs, &dict, &[], &tags);
+        assert_eq!(fallback(inp), "We moved to PostgreSQL. It works");
     }
 
     #[test]

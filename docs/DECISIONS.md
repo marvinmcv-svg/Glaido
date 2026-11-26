@@ -49,3 +49,14 @@ Format: context → decision → consequences. Status is one of *proposed*, *acc
 5. **Wake word position 2 accepts any first word** ("hey", "ok", "hi" …), and a possessive ("Vocalis's") counts.
 6. **Casual style** drops only the final full stop of the text on the deterministic path; the LLM path follows the style block in the prompt.
 **Consequences.** Covered by unit tests in `crates/core` (`formatting`, `gesture`, `wake`).
+
+## ADR-0011: Dictation transport, providers and cleanup model — accepted (2026-11-26)
+**Context.** P1 needs `WS /v1/dictate` (§5.3) with Groq batch-on-stop, a Deepgram adapter and LLM cleanup (§5.4).
+**Decisions.**
+1. **PCM16 over WebSocket for the MVP**, not Opus. 32 KB/s is fine on broadband and avoids a codec on both ends; Opus is a later optimization behind the same messages.
+2. **Retries use the same WebSocket session** (start → audio → stop) with the decrypted local journal, so one code path serves live and retried dictations. `POST /v1/dictate/retry` stays a stub and will be removed if nothing needs it by P4.
+3. **STT failover** walks `STT_PROVIDERS` in order on retryable errors (timeouts, 429, 5xx, network); a 4xx stops the chain.
+4. **Cleanup model `claude-haiku-5-5`**, as the brief asks for a fast Haiku-class model for formatting (`ANTHROPIC_CLEANUP_MODEL` overrides). Raw HTTP, since Rust has no official SDK. `output_config.effort = "low"` with adaptive thinking for latency; no sampling parameters (Haiku 5.5 rejects non-default ones); `anthropic-version: 2026-10-21`.
+5. **Cleanup never blocks dictation.** A refusal, `max_tokens` stop, error or 8 s timeout falls back to deterministic formatting (`formatting::fallback`), and the reply says `cleaned: false`.
+6. **Wire tolerance:** every field of `app` and `tags` is optional on the wire.
+**Zero retention.** Logs carry durations, sizes, provider names and the plan kind only, verified by `tests/dictate_logging.rs`. Provider-side zero retention is a contract setting with each provider (Groq, Deepgram, Anthropic) and must be confirmed before launch; no retention-excluded features (e.g. message threads, batches, files) are used.

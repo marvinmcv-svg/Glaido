@@ -10,6 +10,7 @@ pub const TAG_TIMEZONE: &str = "{timezone}";
 pub const ALL_TAGS: [&str; 3] = [TAG_CLIPBOARD, TAG_DATETIME, TAG_TIMEZONE];
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct TagContext {
     /// Current plain-text clipboard, if any. Missing clipboard expands to "".
     pub clipboard: Option<String>,
