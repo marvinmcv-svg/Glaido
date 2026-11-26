@@ -1,0 +1,22 @@
+[package]
+name = "vocalis-audio"
+description = "Vocalis audio pipeline: capture, resampling, VAD, level meter, encrypted journal"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+# Live microphone capture via cpal (needs ALSA headers on Linux).
+capture = ["dep:cpal"]
+
+[dependencies]
+aes-gcm = "0.10"
+cpal = { version = "0.15", optional = true }
+rand = "0.8"
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest = "1"
+tempfile = "3"
