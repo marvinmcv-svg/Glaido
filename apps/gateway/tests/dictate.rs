@@ -13,10 +13,13 @@ use vocalis_gateway::auth::Verifier;
 use vocalis_gateway::providers::{Audio, Cleanup, ProviderError, SpeechToText, SttChain};
 use vocalis_gateway::{app, config::Config, AppState};
 
+/// (sample count, languages, hints) for each STT call.
+type SttCalls = Arc<Mutex<Vec<(usize, Vec<String>, Vec<String>)>>>;
+
 struct FakeStt {
     name: &'static str,
     result: Result<String, ProviderError>,
-    seen: Arc<Mutex<Vec<(usize, Vec<String>, Vec<String>)>>>,
+    seen: SttCalls,
 }
 
 #[async_trait]
@@ -51,7 +54,7 @@ impl Cleanup for FakeCleanup {
 
 #[derive(Default, Clone)]
 struct Seen {
-    stt: Arc<Mutex<Vec<(usize, Vec<String>, Vec<String>)>>>,
+    stt: SttCalls,
     cleanup: Arc<Mutex<Vec<(String, String)>>>,
 }
 
