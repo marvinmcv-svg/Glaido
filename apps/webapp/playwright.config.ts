@@ -6,7 +6,9 @@ export default defineConfig({
     baseURL: "http://localhost:3001",
     trace: "off",
     // Optional: reuse a preinstalled Chromium instead of the one matching this Playwright version.
-    launchOptions: process.env.PW_CHROMIUM_PATH ? { executablePath: process.env.PW_CHROMIUM_PATH } : {},
+    launchOptions: process.env.PW_CHROMIUM_PATH
+      ? { executablePath: process.env.PW_CHROMIUM_PATH }
+      : {},
   },
   webServer: {
     command: "pnpm start",

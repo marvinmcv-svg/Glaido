@@ -12,7 +12,10 @@ export default async function AccountPage() {
   const { data } = await supabase.auth.getUser();
   if (!data.user) redirect("/login?next=/account");
 
-  const { data: profile } = await supabase.from("profiles").select("display_name, plan, referral_code").maybeSingle();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("display_name, plan, referral_code")
+    .maybeSingle();
 
   return (
     <main className="auth">

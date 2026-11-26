@@ -25,9 +25,9 @@ const themes = Object.fromEntries(
 
 // --- contrast checks -------------------------------------------------------
 const lum = (hex) => {
-  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) =>
-    c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4,
-  );
+  const [r, g, b] = [1, 3, 5]
+    .map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 };
 export const contrast = (a, b) => {
@@ -59,7 +59,9 @@ if (failures.length) {
 
 // --- outputs ---------------------------------------------------------------
 const vars = (obj, prefix, indent = "  ") =>
-  Object.entries(obj).map(([k, v]) => `${indent}--${prefix}${k}: ${v};`).join("\n");
+  Object.entries(obj)
+    .map(([k, v]) => `${indent}--${prefix}${k}: ${v};`)
+    .join("\n");
 const shared = [
   vars(tokens.color.neutral, "neutral-"),
   vars(tokens.color.accent, "accent-"),
@@ -93,11 +95,22 @@ ${vars(themes.light, "", "    ")}
 }
 `;
 
-const data = { color: tokens.color, themes, radius: tokens.radius, space: tokens.space, font: tokens.font, motion: tokens.motion };
+const data = {
+  color: tokens.color,
+  themes,
+  radius: tokens.radius,
+  space: tokens.space,
+  font: tokens.font,
+  motion: tokens.motion,
+};
 const js = `// Generated from tokens.json. Do not edit.\nexport const tokens = ${JSON.stringify(data, null, 2)};\nexport default tokens;\n`;
 const dts = `// Generated from tokens.json. Do not edit.
-export type ThemeName = ${Object.keys(themes).map((t) => JSON.stringify(t)).join(" | ")};
-export type SemanticToken = ${Object.keys(themes.dark).map((t) => JSON.stringify(t)).join(" | ")};
+export type ThemeName = ${Object.keys(themes)
+  .map((t) => JSON.stringify(t))
+  .join(" | ")};
+export type SemanticToken = ${Object.keys(themes.dark)
+  .map((t) => JSON.stringify(t))
+  .join(" | ")};
 export declare const tokens: {
   color: { accent: Record<string, string>; neutral: Record<string, string>; status: Record<string, string> };
   themes: Record<ThemeName, Record<SemanticToken, string>>;

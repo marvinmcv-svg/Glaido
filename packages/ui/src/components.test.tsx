@@ -62,7 +62,9 @@ describe("DictationPill", () => {
   it("announces state and clamps levels", () => {
     const { container } = render(<DictationPill state="recording" levels={[0, 0.5, 2, -1]} />);
     expect(screen.getByRole("status")).toHaveTextContent("Listening");
-    const heights = [...container.querySelectorAll<HTMLElement>(".vc-pill__bar")].map((b) => b.style.height);
+    const heights = [...container.querySelectorAll<HTMLElement>(".vc-pill__bar")].map(
+      (b) => b.style.height,
+    );
     expect(heights).toEqual(["4px", "14px", "24px", "4px"]);
   });
 });

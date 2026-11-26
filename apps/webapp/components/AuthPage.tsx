@@ -6,7 +6,13 @@ import { Brand } from "./Brand";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
-export function AuthPage({ mode, searchParams }: { mode: "login" | "signup"; searchParams: SearchParams }) {
+export function AuthPage({
+  mode,
+  searchParams,
+}: {
+  mode: "login" | "signup";
+  searchParams: SearchParams;
+}) {
   const preserved = pickPreserved(searchParams);
   const next = safeNext(typeof searchParams.next === "string" ? searchParams.next : null);
   const error = typeof searchParams.error === "string" ? searchParams.error : null;
@@ -26,19 +32,23 @@ export function AuthPage({ mode, searchParams }: { mode: "login" | "signup"; sea
         </p>
         {error === "callback" ? (
           <div className="notice" data-kind="error" role="alert" style={{ marginBottom: 16 }}>
-            That sign-in link didn't work. It may have expired or already been used. Request a new one below.
+            That sign-in link didn't work. It may have expired or already been used. Request a new
+            one below.
           </div>
         ) : null}
         {isSupabaseConfigured() ? (
           <AuthForm mode={mode} preserved={preserved.toString()} next={next} />
         ) : (
           <div className="notice" data-kind="error" role="alert">
-            Sign-in isn't configured on this server yet. Set the Supabase environment variables (see .env.example).
+            Sign-in isn't configured on this server yet. Set the Supabase environment variables (see
+            .env.example).
           </div>
         )}
         <div className="foot">
           {mode === "login" ? "New here? " : "Already have an account? "}
-          <Link href={withParams(other, preserved)}>{mode === "login" ? "Create an account" : "Sign in"}</Link>
+          <Link href={withParams(other, preserved)}>
+            {mode === "login" ? "Create an account" : "Sign in"}
+          </Link>
         </div>
       </div>
     </main>

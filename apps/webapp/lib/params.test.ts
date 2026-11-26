@@ -3,7 +3,9 @@ import { pickPreserved, safeNext, withParams } from "./params";
 
 describe("pickPreserved", () => {
   it("keeps valid attribution params and drops the rest", () => {
-    const p = pickPreserved(new URLSearchParams("plan=pro&cadence=annual&source=pricing&ref=abc123&token=secret"));
+    const p = pickPreserved(
+      new URLSearchParams("plan=pro&cadence=annual&source=pricing&ref=abc123&token=secret"),
+    );
     expect(p.toString()).toBe("plan=pro&cadence=annual&source=pricing&ref=abc123");
   });
   it("rejects malformed values", () => {

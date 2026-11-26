@@ -22,7 +22,11 @@ export function DictationPill({ state, levels = [] }: PillProps) {
       <span className="vc-pill__dot" aria-hidden="true" />
       <span className="vc-pill__wave" aria-hidden="true">
         {bars.map((l, i) => (
-          <span key={i} className="vc-pill__bar" style={{ height: `${Math.round(4 + Math.min(1, Math.max(0, l)) * 20)}px` }} />
+          <span
+            key={i}
+            className="vc-pill__bar"
+            style={{ height: `${Math.round(4 + Math.min(1, Math.max(0, l)) * 20)}px` }}
+          />
         ))}
       </span>
       <span className="vc-pill__label">{STATUS[state]}</span>

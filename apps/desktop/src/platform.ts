@@ -8,8 +8,19 @@ export function currentPlatform(): Platform {
 }
 
 /** Default hotkeys (docs/MASTER_PROMPT.md Appendix A, our documented defaults). */
-export const DEFAULT_HOTKEYS: Record<Platform, { dictation: string[]; handsFree: string[]; commands: string[] }> = {
+export const DEFAULT_HOTKEYS: Record<
+  Platform,
+  { dictation: string[]; handsFree: string[]; commands: string[] }
+> = {
   macos: { dictation: ["fn"], handsFree: ["fn", "space"], commands: ["right-option"] },
-  windows: { dictation: ["ctrl", "cmd"], handsFree: ["ctrl", "cmd", "shift"], commands: ["left-ctrl", "left-alt"] },
-  linux: { dictation: ["left-ctrl", "space"], handsFree: ["left-ctrl", "shift", "space"], commands: ["ctrl", "alt"] },
+  windows: {
+    dictation: ["ctrl", "cmd"],
+    handsFree: ["ctrl", "cmd", "shift"],
+    commands: ["left-ctrl", "left-alt"],
+  },
+  linux: {
+    dictation: ["left-ctrl", "space"],
+    handsFree: ["left-ctrl", "shift", "space"],
+    commands: ["ctrl", "alt"],
+  },
 };

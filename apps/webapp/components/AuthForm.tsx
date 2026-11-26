@@ -16,7 +16,15 @@ const PROVIDERS: { id: Provider; label: string }[] = [
   { id: "apple", label: "Continue with Apple" },
 ];
 
-export function AuthForm({ mode, preserved, next }: { mode: Mode; preserved: string; next: string }) {
+export function AuthForm({
+  mode,
+  preserved,
+  next,
+}: {
+  mode: Mode;
+  preserved: string;
+  next: string;
+}) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,7 +44,10 @@ export function AuthForm({ mode, preserved, next }: { mode: Mode; preserved: str
       const result = await fn();
       if (result) setStatus(result);
     } catch {
-      setStatus({ kind: "error", text: "We couldn't reach the sign-in service. Check your connection and try again." });
+      setStatus({
+        kind: "error",
+        text: "We couldn't reach the sign-in service. Check your connection and try again.",
+      });
     } finally {
       setBusy(false);
     }
@@ -50,13 +61,24 @@ export function AuthForm({ mode, preserved, next }: { mode: Mode; preserved: str
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: callbackUrl(), data: Object.fromEntries(new URLSearchParams(preserved)) },
+          options: {
+            emailRedirectTo: callbackUrl(),
+            data: Object.fromEntries(new URLSearchParams(preserved)),
+          },
         });
         if (error) return { kind: "error", text: error.message };
-        if (!data.session) return { kind: "success", text: "Check your inbox to confirm your email, then come back here." };
+        if (!data.session)
+          return {
+            kind: "success",
+            text: "Check your inbox to confirm your email, then come back here.",
+          };
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) return { kind: "error", text: "That email and password don't match. Try again or use a sign-in link." };
+        if (error)
+          return {
+            kind: "error",
+            text: "That email and password don't match. Try again or use a sign-in link.",
+          };
       }
       router.replace(next);
       router.refresh();
@@ -65,25 +87,42 @@ export function AuthForm({ mode, preserved, next }: { mode: Mode; preserved: str
 
   const onMagicLink = () =>
     run(async () => {
-      if (!email) return { kind: "error", text: "Enter your email first, then we'll send the link." };
+      if (!email)
+        return { kind: "error", text: "Enter your email first, then we'll send the link." };
       const { error } = await createClient().auth.signInWithOtp({
         email,
         options: { emailRedirectTo: callbackUrl(), shouldCreateUser: mode === "signup" },
       });
       if (error) return { kind: "error", text: error.message };
-      return { kind: "success", text: `We sent a sign-in link to ${email}. It works once and expires in an hour.` };
+      return {
+        kind: "success",
+        text: `We sent a sign-in link to ${email}. It works once and expires in an hour.`,
+      };
     });
 
   const onOAuth = (provider: Provider) =>
     run(async () => {
-      const { error } = await createClient().auth.signInWithOAuth({ provider, options: { redirectTo: callbackUrl() } });
-      if (error) return { kind: "error", text: `${provider[0]!.toUpperCase()}${provider.slice(1)} sign-in isn't available right now.` };
+      const { error } = await createClient().auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: callbackUrl() },
+      });
+      if (error)
+        return {
+          kind: "error",
+          text: `${provider[0]!.toUpperCase()}${provider.slice(1)} sign-in isn't available right now.`,
+        };
     });
 
   return (
     <div className="stack">
       {PROVIDERS.map((p) => (
-        <Button key={p.id} variant="ghost" className="full" disabled={busy} onClick={() => onOAuth(p.id)}>
+        <Button
+          key={p.id}
+          variant="ghost"
+          className="full"
+          disabled={busy}
+          onClick={() => onOAuth(p.id)}
+        >
           {p.label}
         </Button>
       ))}
@@ -91,7 +130,14 @@ export function AuthForm({ mode, preserved, next }: { mode: Mode; preserved: str
       <form className="stack" onSubmit={onPassword} noValidate>
         <label className="field">
           Email
-          <input type="email" name="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input
+            type="email"
+            name="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </label>
         <label className="field">
           Password
@@ -114,7 +160,11 @@ export function AuthForm({ mode, preserved, next }: { mode: Mode; preserved: str
       </form>
       <div aria-live="polite">
         {status ? (
-          <div className="notice" data-kind={status.kind} role={status.kind === "error" ? "alert" : undefined}>
+          <div
+            className="notice"
+            data-kind={status.kind}
+            role={status.kind === "error" ? "alert" : undefined}
+          >
             {status.text}
           </div>
         ) : null}

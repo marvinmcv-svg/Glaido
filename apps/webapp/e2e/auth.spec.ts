@@ -25,5 +25,7 @@ test("account is protected", async ({ page }) => {
 test("bad callback shows a helpful error", async ({ page }) => {
   await page.goto("/auth/callback?plan=pro");
   await expect(page).toHaveURL(/\/login\?plan=pro&error=callback/);
-  await expect(page.getByRole("alert").filter({ hasText: "sign-in link" })).toContainText("didn't work");
+  await expect(page.getByRole("alert").filter({ hasText: "sign-in link" })).toContainText(
+    "didn't work",
+  );
 });

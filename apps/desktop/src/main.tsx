@@ -17,7 +17,10 @@ function App() {
   const keys = DEFAULT_HOTKEYS[platform];
 
   useEffect(() => {
-    if (isTauri()) invoke<AppInfo>("app_info").then(setInfo).catch(() => setInfo(null));
+    if (isTauri())
+      invoke<AppInfo>("app_info")
+        .then(setInfo)
+        .catch(() => setInfo(null));
   }, []);
 
   return (
@@ -37,7 +40,11 @@ function App() {
         {page === "Home" ? (
           <>
             <div className="stats">
-              <StatCard label="Time saved" value="0m" hint="Your first dictation starts the clock" />
+              <StatCard
+                label="Time saved"
+                value="0m"
+                hint="Your first dictation starts the clock"
+              />
               <StatCard label="Speed" value="— wpm" hint="Measured after a few dictations" />
               <StatCard label="Streak" value="0 days" hint="Dictate today to start one" />
             </div>
@@ -45,7 +52,9 @@ function App() {
               <div className="row">
                 <div>
                   <div>Dictate</div>
-                  <div className="muted">Hold, speak, release. The text lands where your cursor is.</div>
+                  <div className="muted">
+                    Hold, speak, release. The text lands where your cursor is.
+                  </div>
                 </div>
                 <Keycap keys={keys.dictation} platform={platform} />
               </div>
@@ -75,7 +84,9 @@ function App() {
             </div>
             <div className="row">
               <div className="muted">Version</div>
-              <div className="muted">{info ? `${info.version} (core ${info.coreVersion})` : "browser preview"}</div>
+              <div className="muted">
+                {info ? `${info.version} (core ${info.coreVersion})` : "browser preview"}
+              </div>
             </div>
           </Card>
         ) : (
