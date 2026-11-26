@@ -52,4 +52,5 @@ Short utterances return in about 1–3 s. All four processing steps finish after
 
 ## Open questions / UNKNOWN
 
-- _(add as found; link a ledger row or ADR)_
+- Gesture details and Esc/raw/snippet ordering settled in ADR-0010 (`crates/core/src/gesture.rs`, `formatting.rs`).
+- Wake-word tokenization settled in ADR-0010 item 5 (`crates/core/src/wake.rs`).

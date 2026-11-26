@@ -49,4 +49,5 @@ The reference offers a **Wispr Flow import** (dictionary and snippets) during on
 
 ## Open questions / UNKNOWN
 
-- _(add as found; link a ledger row or ADR)_
+- Snippets fire under Raw text; dictionary spellings survive Lowercase (ADR-0010).
+- `{datetime}` format is supplied by the client per locale (UNKNOWN in reference; our choice).
