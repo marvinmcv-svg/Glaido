@@ -6,6 +6,9 @@
 
 use crate::level::dbfs;
 
+/// Highest starting noise-floor estimate, in dBFS.
+const MAX_INITIAL_FLOOR_DB: f32 = -50.0;
+
 #[derive(Debug, Clone)]
 pub struct VadConfig {
     /// Speech must be this many dB above the noise floor.
@@ -59,7 +62,9 @@ impl Vad {
     pub fn push(&mut self, frame: &[f32]) -> bool {
         let db = dbfs(frame);
         self.total_frames += 1;
-        let noise = *self.noise_db.get_or_insert(db);
+        // Seed from the first frame, but never above MAX_INITIAL_FLOOR_DB: with
+        // push-to-talk the first frame is often already speech.
+        let noise = *self.noise_db.get_or_insert(db.min(MAX_INITIAL_FLOOR_DB));
         let loud = db >= self.cfg.min_speech_db && db >= noise + self.cfg.margin_db;
         if loud {
             self.run += 1;
@@ -160,6 +165,16 @@ mod tests {
         assert!(tail[..15].iter().all(|&f| f));
         assert!(!tail[16]);
         assert!(v.heard_speech(8));
+    }
+
+    #[test]
+    fn speech_from_the_very_first_frame_is_detected() {
+        let mut v = Vad::default();
+        let flags: Vec<bool> = (0..20).map(|_| v.push(&tone(0.3, 320))).collect();
+        assert!(
+            flags[2..].iter().all(|&f| f),
+            "push-to-talk users start talking at once"
+        );
     }
 
     #[test]
