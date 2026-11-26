@@ -24,12 +24,19 @@ use error::ApiError;
 #[derive(Clone)]
 pub struct AppState {
     pub config: Arc<Config>,
+    pub verifier: Arc<auth::Verifier>,
 }
 
 impl AppState {
     pub fn new(config: Config) -> Self {
+        let verifier = auth::Verifier::new(config.supabase_url.as_deref(), config.jwt_secret.as_deref());
+        Self::with_verifier(config, verifier)
+    }
+
+    pub fn with_verifier(config: Config, verifier: auth::Verifier) -> Self {
         Self {
             config: Arc::new(config),
+            verifier: Arc::new(verifier),
         }
     }
 }

@@ -27,9 +27,10 @@ Format: context → decision → consequences. Status is one of *proposed*, *acc
 **Options.** Stripe Billing + Stripe Tax (default in §5.7) vs. a merchant of record (Paddle, Polar) for VAT handling.
 **Decision due.** Before P4. Human input requested (PLAN O4).
 
-## ADR-0007: Gateway auth verifies Supabase JWTs (HS256 shared secret now, JWKS later) — accepted
-**Context.** Local Supabase issues HS256 tokens signed with the project JWT secret; hosted projects can use asymmetric keys via JWKS.
-**Decision.** `apps/gateway` verifies `Authorization: Bearer` with `SUPABASE_JWT_SECRET` (HS256), requires `aud = authenticated`, and reads `sub` plus an optional `x-device-id` header. A JWKS verifier is added when the hosted project switches to asymmetric keys.
+## ADR-0007: Gateway auth verifies Supabase JWTs via JWKS, with optional legacy HS256 — accepted (amended 2026-11-26)
+**Context.** The first version verified HS256 with the project secret. Testing against a real local Supabase (CLI 3.4, Postgres 17) showed access tokens are now signed with **ES256** and a `kid`, published at `/auth/v1/.well-known/jwks.json`; hosted projects are moving the same way.
+**Decision.** `apps/gateway` verifies `Authorization: Bearer` tokens with keys from the project's JWKS (`SUPABASE_URL`), cached in memory and re-fetched on an unknown `kid` at most every 30 s. HS256 is accepted only if `SUPABASE_JWT_SECRET` is set (legacy projects). The key, not the token header, decides the algorithm. Required claims: `exp`, `sub`, `aud = authenticated`. `x-device-id` is read as an optional header.
+**Consequences.** Verified by `apps/gateway/tests/jwks.rs` (runtime-generated P-256 keys, no private key in the repo) and manually against local Supabase.
 
 ## ADR-0008: Zero-retention logging is enforced by construction — accepted
 **Decision.** The gateway's request-logging middleware only ever sees method, matched route, status, latency and byte counts; it never reads bodies or query strings. A test (`apps/gateway/tests/no_body_logging.rs`) sends a request carrying a sentinel transcript and asserts the sentinel never appears in captured log output.

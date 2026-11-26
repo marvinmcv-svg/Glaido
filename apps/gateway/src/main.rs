@@ -17,7 +17,16 @@ async fn main() {
         }
     };
     let addr = std::net::SocketAddr::from(([0, 0, 0, 0], config.port));
-    let listener = tokio::net::TcpListener::bind(addr).await.expect("bind");
+    let listener = match tokio::net::TcpListener::bind(addr).await {
+        Ok(l) => l,
+        Err(e) => {
+            tracing::error!(%addr, error = %e, "could not bind the listen address");
+            std::process::exit(1);
+        }
+    };
     tracing::info!(%addr, "gateway listening");
-    axum::serve(listener, app(AppState::new(config))).await.expect("server");
+    if let Err(e) = axum::serve(listener, app(AppState::new(config))).await {
+        tracing::error!(error = %e, "server stopped");
+        std::process::exit(1);
+    }
 }
