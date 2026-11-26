@@ -1,0 +1,9 @@
+{
+  "name": "@vocalis/config",
+  "version": "0.1.0",
+  "private": true,
+  "exports": {
+    "./product.json": "./product.json",
+    "./tsconfig.base.json": "./tsconfig.base.json"
+  }
+}

@@ -1,0 +1,6 @@
+docs/MASTER_PROMPT.md
+pnpm-lock.yaml
+target/
+dist/
+.next/
+apps/desktop/src-tauri/gen/

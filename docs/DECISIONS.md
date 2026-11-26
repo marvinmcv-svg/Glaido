@@ -37,3 +37,14 @@ Format: context → decision → consequences. Status is one of *proposed*, *acc
 ## ADR-0009: Phase R runs from the audit until runtime REA access exists — accepted
 **Context.** REA runtime captures (R1, R2) need a desktop browser and a personal account; this cloud container has neither for the reference.
 **Decision.** Seed `docs/research/finding-ledger.md` from the dated audit in the master prompt, marked *observed (audit)* with medium confidence. Re-verify rows with REA when access exists (PLAN O5). R3 (open-source analogs) is ordinary repo reading and proceeds now. R4/R5 apply to our own builds from P1.
+
+## ADR-0010: Pipeline and gesture choices where the spec is silent — accepted
+**Context.** Spec 4.1 and 4.5 leave a few orderings open (rule 3 of §1: mark UNKNOWN, decide, record).
+**Decisions.**
+1. **Snippets fire even when Raw text is on.** A whole-dictation trigger is explicit intent; this keeps snippets usable in terminal rules (the Terminal preset turns Raw on). §5.4 step 1 is amended accordingly.
+2. **User dictionary spellings survive the Lowercase style.** Lowercasing runs before the dictionary post-pass, and tag expansions (e.g. a clipboard URL) are never re-cased.
+3. **Esc cancels push-to-talk as well as hands-free sessions.**
+4. **Recording starts on the first key-down**, even when double-tap is enabled, to protect the < 80 ms start budget. A tap that turns out not to be part of a double tap produces a `Discard` action, so no record is created.
+5. **Wake word position 2 accepts any first word** ("hey", "ok", "hi" …), and a possessive ("Vocalis's") counts.
+6. **Casual style** drops only the final full stop of the text on the deterministic path; the LLM path follows the style block in the prompt.
+**Consequences.** Covered by unit tests in `crates/core` (`formatting`, `gesture`, `wake`).

@@ -1,0 +1,13 @@
+{
+  "productName": "Vocalis",
+  "wakeWord": "Vocalis",
+  "domain": "vocalis.app",
+  "appUrl": "https://app.vocalis.app",
+  "apiUrl": "https://api.vocalis.app",
+  "cliName": "vocalis",
+  "deepLinkScheme": "vocalis",
+  "accent": "#FF5A36",
+  "company": "Your Company Ltd.",
+  "freeWordsPerWeek": 2000,
+  "pricing": { "proMonthlyUsd": 18, "proAnnualMonthlyUsd": 15 }
+}
