@@ -1,0 +1,42 @@
+# Local Supabase (`supabase start`). Secrets come from env vars, never from git.
+project_id = "vocalis"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+
+[db]
+port = 54322
+major_version = 16
+
+[studio]
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://localhost:3001"
+additional_redirect_urls = ["http://localhost:3001/auth/callback", "vocalis://auth/callback"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+double_confirm_changes = true
+
+[auth.external.google]
+enabled = false
+client_id = "env(SUPABASE_AUTH_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)"
+
+[auth.external.github]
+enabled = false
+client_id = "env(SUPABASE_AUTH_GITHUB_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_GITHUB_SECRET)"
+
+[auth.external.apple]
+enabled = false
+client_id = "env(SUPABASE_AUTH_APPLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_APPLE_SECRET)"
