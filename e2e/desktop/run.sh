@@ -21,7 +21,7 @@ if [[ -z "$PY" ]]; then
   done
 fi
 [[ -n "$PY" ]] || { echo "FAIL: no python3 with tkinter found (set E2E_PYTHON)"; exit 1; }
-WORK="$(mktemp -d)"
+WORK="${E2E_WORK:-$(mktemp -d)}"
 SECRET="e2e-secret-with-at-least-32-characters!!"
 STT_PORT=18911; GW_PORT=18912
 export DISPLAY="${DISPLAY_E2E:-:97}"
@@ -39,6 +39,14 @@ SUPABASE_JWT_SECRET="$SECRET" GROQ_API_KEY=e2e GROQ_BASE_URL="http://127.0.0.1:$
 printf 'ORIGINAL CLIPBOARD' | xclip -selection clipboard &
 sleep 0.5
 
+# Settings as the setup wizard leaves them, with a non-default shortcut, so the
+# run also proves that saved hotkeys drive the engine.
+mkdir -p "$WORK/data/app.vocalis.desktop"
+cat >"$WORK/data/app.vocalis.desktop/settings.json" <<'JSON'
+{"languages":["en"],"setupCompleted":true,
+ "hotkeys":{"linux":{"dictation":"f8","dictationHandsfree":"shift+f8"}}}
+JSON
+
 launch_desktop() {
   HOME="$WORK/home" XDG_DATA_HOME="$WORK/data" VOCALIS_GATEWAY_URL="http://127.0.0.1:$GW_PORT" \
     VOCALIS_DEV_TOKEN="$TOKEN" VOCALIS_DEV_WAV="$WORK/speech.wav" RUST_LOG=info \
@@ -52,10 +60,16 @@ sleep 6
 sleep 2
 xdotool search --name "E2E target" windowactivate --sync 2>/dev/null || true
 
-# Hold the Linux default dictation chord (Left Ctrl + Space) for 2.5 s.
-xdotool keydown ctrl keydown space
+# The default chord (Left Ctrl + Space) must no longer start anything.
+xdotool keydown Control_L keydown space
+sleep 1
+xdotool keyup space keyup Control_L
+sleep 1
+# Hold the configured shortcut (F8) for 2.5 s. (Not Right Ctrl: xdotool also
+# presses Left Ctrl for it, which the tracker rightly treats as another chord.)
+xdotool keydown F8
 sleep 2.5
-xdotool keyup space keyup ctrl
+xdotool keyup F8
 sleep 4
 
 pasted="$(cat "$WORK/pasted.txt" 2>/dev/null || true)"
@@ -64,10 +78,10 @@ recordings="$(find "$WORK/data" -name '*.wav.enc' | wc -l)"
 
 # Crash mid-recording: hold the chord, kill -9 the app while audio is being
 # journaled, then restart it and look for the recovery report.
-xdotool keydown ctrl keydown space
+xdotool keydown F8
 sleep 2
 kill -9 "$DESKTOP_PID" 2>/dev/null || true
-xdotool keyup space keyup ctrl
+xdotool keyup F8
 sleep 1
 launch_desktop "$WORK/desktop2.log"
 sleep 6
@@ -76,12 +90,14 @@ echo "pasted:     '$pasted'"
 echo "clipboard:  '$clip'"
 echo "recordings: $recordings"
 echo "recovered:  $recovered"
+echo "dictations: $(grep -c '"dictation processed"' "$WORK/gateway.log" || true)"
 echo "stt calls:  $(wc -l < "$WORK/stt.log" 2>/dev/null || echo 0)"
 
 status=0
 [[ "$pasted" == "Hello from the end to end test" ]] || { echo "FAIL: unexpected pasted text"; status=1; }
 [[ "$clip" == "ORIGINAL CLIPBOARD" ]] || { echo "FAIL: clipboard not restored"; status=1; }
 [[ "$recordings" -ge 1 ]] || { echo "FAIL: no encrypted recording kept"; status=1; }
+[[ "$(grep -c '"dictation processed"' "$WORK/gateway.log" || true)" -eq 1 ]] || { echo "FAIL: expected exactly one dictation (default chord must be inactive)"; status=1; }
 [[ "$recovered" -eq 1 ]] || { echo "FAIL: audio from the killed recording was not recovered"; status=1; }
 if grep -q "hello from the end to end test" "$WORK/gateway.log"; then echo "FAIL: transcript in gateway logs"; status=1; fi
 if [[ $status -ne 0 ]]; then

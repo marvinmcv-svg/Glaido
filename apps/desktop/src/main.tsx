@@ -7,7 +7,9 @@ import { AccountRow } from "./Account";
 import { Activity } from "./Activity";
 import "./app.css";
 import { currentPlatform, DEFAULT_HOTKEYS } from "./platform";
+import { chordKeys, useSettings } from "./settings";
 import { Toasts } from "./Toasts";
+import { Wizard } from "./Wizard";
 
 type AppInfo = { name: string; version: string; coreVersion: string };
 const PAGES = ["Home", "Dictionary", "Snippets", "Formatting", "Settings"] as const;
@@ -16,8 +18,16 @@ function App() {
   const [page, setPage] = useState<(typeof PAGES)[number]>("Home");
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [sounds, setSounds] = useState(true);
-  const platform = currentPlatform();
-  const keys = DEFAULT_HOTKEYS[platform];
+  const { settings, save } = useSettings();
+  const [wizard, setWizard] = useState(false);
+  const platform = settings?.platform ?? currentPlatform();
+  const keys = settings
+    ? {
+        dictation: chordKeys(settings.hotkeys.dictation),
+        handsFree: chordKeys(settings.hotkeys.dictationHandsfree),
+      }
+    : DEFAULT_HOTKEYS[platform];
+  const showWizard = settings !== null && (wizard || !settings.setupCompleted);
 
   useEffect(() => {
     if (isTauri())
@@ -84,6 +94,17 @@ function App() {
           <Card>
             <AccountRow />
             <div className="row">
+              <div>
+                <div>Setup wizard</div>
+                <div className="muted">
+                  Check permissions, test your microphone, pick languages.
+                </div>
+              </div>
+              <Button variant="ghost" onClick={() => setWizard(true)}>
+                Restart wizard
+              </Button>
+            </div>
+            <div className="row">
               <div>Interaction sounds</div>
               <Switch checked={sounds} onChange={setSounds} label="Interaction sounds" />
             </div>
@@ -99,6 +120,9 @@ function App() {
         )}
       </main>
       <Toasts />
+      {showWizard && settings ? (
+        <Wizard settings={settings} save={save} onDone={() => setWizard(false)} />
+      ) : null}
     </div>
   );
 }

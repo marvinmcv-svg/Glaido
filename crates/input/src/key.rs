@@ -46,6 +46,31 @@ impl Key {
         )
     }
 
+    /// The settings name, the inverse of [`Key::parse`].
+    pub fn name(self) -> String {
+        match self {
+            Key::Fn => "fn".into(),
+            Key::LeftCtrl => "left_ctrl".into(),
+            Key::RightCtrl => "right_ctrl".into(),
+            Key::LeftAlt => "left_alt".into(),
+            Key::RightAlt => "right_alt".into(),
+            Key::LeftShift => "shift".into(),
+            Key::RightShift => "right_shift".into(),
+            Key::LeftMeta => "left_meta".into(),
+            Key::RightMeta => "right_meta".into(),
+            Key::Space => "space".into(),
+            Key::Enter => "enter".into(),
+            Key::Escape => "esc".into(),
+            Key::Tab => "tab".into(),
+            Key::Backspace => "backspace".into(),
+            Key::Char('+') => "plus".into(),
+            Key::Char(c) => c.to_string(),
+            Key::F(n) => format!("f{n}"),
+            Key::Mouse(n) => format!("mouse{n}"),
+            Key::Other(code) => format!("code{code}"),
+        }
+    }
+
     /// Parse names used in settings: `fn`, `left_ctrl`, `right_option`, `cmd`, `space`, `k`, `f5`, `mouse4`.
     /// Side-less modifier names mean the left key.
     pub fn parse(s: &str) -> Option<Key> {
@@ -67,8 +92,11 @@ impl Key {
             "esc" | "escape" => Key::Escape,
             "tab" => Key::Tab,
             "backspace" => Key::Backspace,
+            "plus" => Key::Char('+'),
             _ => {
-                if let Some(n) = s
+                if let Some(code) = s.strip_prefix("code").and_then(|n| n.parse().ok()) {
+                    Key::Other(code)
+                } else if let Some(n) = s
                     .strip_prefix("mouse")
                     .and_then(|n| n.parse().ok())
                     .filter(|n: &u8| *n >= 4)
@@ -108,5 +136,36 @@ mod tests {
         assert_eq!(Key::parse("mouse4"), Some(Key::Mouse(4)));
         assert_eq!(Key::parse("mouse1"), None, "primary buttons can't be hotkeys");
         assert_eq!(Key::parse("banana"), None);
+    }
+
+    #[test]
+    fn names_round_trip() {
+        let keys = [
+            Key::Fn,
+            Key::LeftCtrl,
+            Key::RightCtrl,
+            Key::LeftAlt,
+            Key::RightAlt,
+            Key::LeftShift,
+            Key::RightShift,
+            Key::LeftMeta,
+            Key::RightMeta,
+            Key::Space,
+            Key::Enter,
+            Key::Escape,
+            Key::Tab,
+            Key::Backspace,
+            Key::Char('k'),
+            Key::Char('7'),
+            Key::Char('+'),
+            Key::Char(';'),
+            Key::F(5),
+            Key::F(24),
+            Key::Mouse(4),
+            Key::Other(314),
+        ];
+        for k in keys {
+            assert_eq!(Key::parse(&k.name()), Some(k), "{k:?}");
+        }
     }
 }

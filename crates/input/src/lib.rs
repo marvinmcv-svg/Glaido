@@ -12,5 +12,5 @@ pub mod key;
 #[cfg(feature = "listen")]
 pub mod listen;
 
-pub use chord::{Chord, ChordError, ChordTracker, KeyEvent};
+pub use chord::{Chord, ChordError, ChordRecorder, ChordTracker, KeyEvent, Recorded};
 pub use key::Key;

@@ -12,11 +12,14 @@ use tokio::sync::mpsc;
 use vocalis_audio::dsp::{to_i16, Resampler};
 use vocalis_audio::TARGET_RATE;
 use vocalis_core::gesture::{self, Action, Binding, Recognizer};
-use vocalis_input::{Chord, ChordTracker, KeyEvent};
+use vocalis_input::{Chord, ChordRecorder, ChordTracker, KeyEvent, Recorded};
 use vocalis_session::{AudioSignal, Controller, History, StartSettings};
 use vocalis_store::RecordStatus;
 
 use crate::adapters::StoreHistory;
+use crate::settings::Settings;
+
+pub type SharedSettings = Arc<std::sync::RwLock<Settings>>;
 
 use crate::gateway_ws::{TokenSource, WsGateway};
 
@@ -24,10 +27,9 @@ pub struct EngineConfig {
     pub data_dir: PathBuf,
     pub gateway_url: String,
     pub token: TokenSource,
-    pub primary: Chord,
-    pub hands_free: Chord,
+    /// Read at every start (languages, microphone) and on `Event::Hotkeys`.
+    pub settings: SharedSettings,
     pub gesture: gesture::Config,
-    pub languages: Vec<String>,
     pub keep_on_clipboard: bool,
     /// Development and E2E: feed this 16 kHz mono WAV instead of the microphone.
     pub dev_wav: Option<PathBuf>,
@@ -39,10 +41,17 @@ pub(crate) enum Event {
     CaptureFailed(String),
     /// Re-transcribe a failed record from its saved audio.
     Retry(String),
+    /// The hotkeys in settings changed: rebuild the chord tracker.
+    Hotkeys,
+    /// Hotkey picker: report the next combination pressed (`None` = cancelled).
+    Record(RecordReply),
 }
 
 /// Puts text on the clipboard.
 pub type Copier = Arc<dyn Fn(&str) -> Result<(), String> + Send + Sync>;
+
+/// Where the hotkey picker's result goes (`None` = cancelled).
+pub(crate) type RecordReply = tokio::sync::oneshot::Sender<Option<Result<Chord, String>>>;
 
 /// What the UI commands need from a running engine (Tauri managed state).
 pub struct EngineHandle {
@@ -54,10 +63,33 @@ pub struct EngineHandle {
 
 impl EngineHandle {
     pub fn retry(&self, id: String) -> Result<(), String> {
+        self.send(Event::Retry(id))
+    }
+
+    pub fn hotkeys_changed(&self) -> Result<(), String> {
+        self.send(Event::Hotkeys)
+    }
+
+    /// Wait for the user to press and release a combination.
+    pub async fn record_chord(&self) -> Result<Option<Chord>, String> {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        self.send(Event::Record(tx))?;
+        match rx.await {
+            Ok(Some(r)) => r.map(Some),
+            Ok(None) | Err(_) => Ok(None),
+        }
+    }
+
+    fn send(&self, ev: Event) -> Result<(), String> {
         self.tx
-            .try_send(Event::Retry(id))
+            .try_send(ev)
             .map_err(|_| "the dictation engine is busy".to_owned())
     }
+}
+
+fn tracker_for(settings: &SharedSettings) -> Result<ChordTracker, String> {
+    let (primary, hands_free) = settings.read().expect("settings lock").hotkeys().chords()?;
+    ChordTracker::new(vec![(Binding::Primary, primary), (Binding::HandsFree, hands_free)]).map_err(|e| e.to_string())
 }
 
 fn now_ms() -> i64 {
@@ -109,11 +141,7 @@ pub fn start<R: Runtime>(app: AppHandle<R>, cfg: EngineConfig) -> Result<EngineH
         ui.clone(),
         history.clone(),
     );
-    let tracker = ChordTracker::new(vec![
-        (Binding::Primary, cfg.primary.clone()),
-        (Binding::HandsFree, cfg.hands_free.clone()),
-    ])
-    .map_err(|e| e.to_string())?;
+    let tracker = tracker_for(&cfg.settings)?;
 
     let (tx, rx) = mpsc::channel::<Event>(256);
     let epoch = Instant::now();
@@ -132,10 +160,6 @@ pub fn start<R: Runtime>(app: AppHandle<R>, cfg: EngineConfig) -> Result<EngineH
         })
         .map_err(|e| e.to_string())?;
 
-    let settings = StartSettings {
-        languages: cfg.languages.clone(),
-        ..Default::default()
-    };
     let handle = EngineHandle {
         history: history.clone(),
         audio_key,
@@ -149,7 +173,7 @@ pub fn start<R: Runtime>(app: AppHandle<R>, cfg: EngineConfig) -> Result<EngineH
         controller,
         tracker,
         Recognizer::new(cfg.gesture),
-        settings,
+        cfg.settings,
         epoch,
         cfg.dev_wav,
     ));
@@ -164,17 +188,56 @@ async fn run(
     mut controller: Controller,
     mut tracker: ChordTracker,
     mut recognizer: Recognizer,
-    settings: StartSettings,
+    settings: SharedSettings,
     epoch: Instant,
     dev_wav: Option<PathBuf>,
 ) {
+    let start_settings = || StartSettings {
+        languages: settings.read().expect("settings lock").languages.clone(),
+        ..Default::default()
+    };
+    let microphone = || settings.read().expect("settings lock").microphone.clone();
     let mut capture: Option<Arc<AtomicBool>> = None;
+    let mut recording: Option<(ChordRecorder, RecordReply)> = None;
     let mut tick = tokio::time::interval(Duration::from_millis(20));
     loop {
         let actions: Vec<Action> = tokio::select! {
             ev = rx.recv() => match ev {
                 None => return,
-                Some(Event::Key(k)) => tracker.handle(k).into_iter().flat_map(|i| recognizer.handle(i)).collect(),
+                Some(Event::Key(k)) => {
+                    if let Some((rec, _)) = recording.as_mut() {
+                        let outcome = match rec.handle(k) {
+                            Recorded::Pending => continue,
+                            Recorded::Cancelled => None,
+                            Recorded::Done(r) => Some(r.map_err(|e| e.to_string())),
+                        };
+                        if let Some((_, reply)) = recording.take() {
+                            let _ = reply.send(outcome);
+                        }
+                        // The keys used to record must not also start a dictation.
+                        let _ = tracker.reset(0);
+                        continue;
+                    }
+                    tracker.handle(k).into_iter().flat_map(|i| recognizer.handle(i)).collect()
+                }
+                Some(Event::Hotkeys) => {
+                    match tracker_for(&settings) {
+                        Ok(t) => {
+                            tracker = t;
+                            recognizer = Recognizer::new(recognizer.config());
+                        }
+                        Err(e) => tracing::warn!(target: "engine", error = %e, "hotkeys not applied"),
+                    }
+                    continue;
+                }
+                Some(Event::Record(reply)) => {
+                    if controller.is_recording() {
+                        let _ = reply.send(Some(Err("Finish the current dictation first.".into())));
+                    } else {
+                        recording = Some((ChordRecorder::new(), reply));
+                    }
+                    continue;
+                }
                 Some(Event::Audio(pcm)) => {
                     if controller.audio(&pcm).await == AudioSignal::AutoStop {
                         stop_capture(&mut capture);
@@ -187,7 +250,7 @@ async fn run(
                     let record = history.lock().get(&id);
                     match record {
                         Ok(r) if r.status == RecordStatus::Failed => match r.audio_path {
-                            Some(p) => controller.retry(id, PathBuf::from(p), settings.clone()),
+                            Some(p) => controller.retry(id, PathBuf::from(p), start_settings()),
                             None => tracing::warn!(target: "engine", "retry skipped: the record has no audio"),
                         },
                         Ok(_) => tracing::info!(target: "engine", "retry skipped: the record did not fail"),
@@ -211,8 +274,8 @@ async fn run(
         for action in actions {
             match action {
                 Action::Start(_) => {
-                    controller.start(settings.clone(), now_ms());
-                    capture = Some(start_capture(tx.clone(), dev_wav.clone()));
+                    controller.start(start_settings(), now_ms());
+                    capture = Some(start_capture(tx.clone(), dev_wav.clone(), microphone()));
                 }
                 Action::Promote(_) => {}
                 Action::Stop => {
@@ -240,7 +303,7 @@ fn stop_capture(capture: &mut Option<Arc<AtomicBool>>) {
 
 /// Capture on a dedicated thread until the returned flag is set. The cpal
 /// stream is created and dropped on that thread (it is not `Send` everywhere).
-fn start_capture(tx: mpsc::Sender<Event>, dev_wav: Option<PathBuf>) -> Arc<AtomicBool> {
+fn start_capture(tx: mpsc::Sender<Event>, dev_wav: Option<PathBuf>, device: Option<String>) -> Arc<AtomicBool> {
     let stop = Arc::new(AtomicBool::new(false));
     let flag = stop.clone();
     let _ = std::thread::Builder::new()
@@ -249,7 +312,15 @@ fn start_capture(tx: mpsc::Sender<Event>, dev_wav: Option<PathBuf>) -> Arc<Atomi
             if let Some(path) = dev_wav {
                 return feed_wav(&path, &tx, &flag);
             }
-            let cap = match vocalis_audio::capture::start(None) {
+            // A saved microphone that is unplugged falls back to the default.
+            let opened = vocalis_audio::capture::start(device.as_deref()).or_else(|e| {
+                if device.is_some() {
+                    vocalis_audio::capture::start(None)
+                } else {
+                    Err(e)
+                }
+            });
+            let cap = match opened {
                 Ok(c) => c,
                 Err(e) => {
                     let _ = tx.blocking_send(Event::CaptureFailed(e.to_string()));

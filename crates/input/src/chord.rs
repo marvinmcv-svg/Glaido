@@ -61,6 +61,13 @@ impl Chord {
         self.0.iter()
     }
 
+    /// The settings value, e.g. `"left_ctrl+space"`: modifiers first, then
+    /// the other keys; `Chord::parse` reads it back.
+    pub fn to_setting(&self) -> String {
+        let (mods, rest): (Vec<Key>, Vec<Key>) = self.0.iter().copied().partition(|k| k.is_modifier());
+        mods.iter().chain(&rest).map(|k| k.name()).collect::<Vec<_>>().join("+")
+    }
+
     fn contains(&self, k: &Key) -> bool {
         self.0.contains(k)
     }
@@ -74,6 +81,52 @@ impl Chord {
 pub enum KeyEvent {
     Down(Key, u64),
     Up(Key, u64),
+}
+
+/// Records a new shortcut in the hotkey picker: the user presses a
+/// combination and lets go; the result is every key that was held at the
+/// fullest moment. Esc alone cancels.
+#[derive(Debug, Clone, Default)]
+pub struct ChordRecorder {
+    down: BTreeSet<Key>,
+    peak: BTreeSet<Key>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Recorded {
+    /// Still recording.
+    Pending,
+    Done(Result<Chord, ChordError>),
+    /// Esc on its own.
+    Cancelled,
+}
+
+impl ChordRecorder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn handle(&mut self, ev: KeyEvent) -> Recorded {
+        match ev {
+            KeyEvent::Down(key, _) => {
+                if key == Key::Escape && self.down.is_empty() {
+                    return Recorded::Cancelled;
+                }
+                self.down.insert(key);
+                if self.down.len() >= self.peak.len() {
+                    self.peak = self.down.clone();
+                }
+                Recorded::Pending
+            }
+            KeyEvent::Up(key, _) => {
+                // An up without a down (held before recording began) is ignored.
+                if !self.down.remove(&key) || !self.down.is_empty() {
+                    return Recorded::Pending;
+                }
+                Recorded::Done(Chord::new(std::mem::take(&mut self.peak)))
+            }
+        }
+    }
 }
 
 /// Tracks which keys are down and reports chord presses and releases as
@@ -266,6 +319,64 @@ mod tests {
         run(&mut t, &[Down(Key::Fn, 0), Down(Key::Space, 5)]);
         assert_eq!(t.reset(9), vec![Released(Primary, 9), Released(HandsFree, 9)]);
         assert_eq!(run(&mut t, &[Down(Key::Fn, 20)]), vec![Pressed(Primary, 20)]);
+    }
+
+    #[test]
+    fn chord_settings_round_trip() {
+        for s in [
+            "fn",
+            "fn+space",
+            "left_ctrl+left_meta+shift",
+            "right_alt",
+            "left_ctrl+shift+space",
+            "mouse5",
+        ] {
+            let c = Chord::parse(s).unwrap();
+            assert_eq!(Chord::parse(&c.to_setting()).unwrap(), c, "{s}");
+        }
+        assert_eq!(Chord::parse("space+left_ctrl").unwrap().to_setting(), "left_ctrl+space");
+    }
+
+    #[test]
+    fn recorder_takes_the_fullest_combination() {
+        use KeyEvent::*;
+        let mut r = ChordRecorder::new();
+        let evs = [
+            Down(Key::LeftCtrl, 0),
+            Down(Key::LeftShift, 1),
+            Down(Key::Space, 2),
+            Up(Key::Space, 3),
+            Up(Key::LeftShift, 4),
+        ];
+        for e in evs {
+            assert_eq!(r.handle(e), Recorded::Pending);
+        }
+        assert_eq!(
+            r.handle(Up(Key::LeftCtrl, 5)),
+            Recorded::Done(Ok(Chord::parse("left_ctrl+shift+space").unwrap()))
+        );
+    }
+
+    #[test]
+    fn recorder_modifier_only_cancel_and_invalid() {
+        use KeyEvent::*;
+        let mut r = ChordRecorder::new();
+        r.handle(Down(Key::Fn, 0));
+        assert_eq!(
+            r.handle(Up(Key::Fn, 1)),
+            Recorded::Done(Ok(Chord::parse("fn").unwrap()))
+        );
+
+        let mut r = ChordRecorder::new();
+        assert_eq!(r.handle(Up(Key::LeftCtrl, 0)), Recorded::Pending, "stale up ignored");
+        assert_eq!(r.handle(Down(Key::Escape, 1)), Recorded::Cancelled);
+
+        let mut r = ChordRecorder::new();
+        r.handle(Down(Key::Char('k'), 0));
+        assert_eq!(
+            r.handle(Up(Key::Char('k'), 1)),
+            Recorded::Done(Err(ChordError::BareCharacter))
+        );
     }
 
     #[test]

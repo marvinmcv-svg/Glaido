@@ -7,6 +7,8 @@ mod engine;
 mod gateway_ws;
 mod history_cmds;
 mod secrets;
+mod settings;
+mod setup_cmds;
 
 use std::sync::Arc;
 
@@ -79,49 +81,22 @@ fn toggle_bar<R: Runtime>(app: AppHandle<R>) -> Result<bool, String> {
     }
 }
 
-/// Default hotkeys per OS (docs/MASTER_PROMPT.md Appendix A).
-fn default_hotkeys() -> (&'static str, &'static str) {
-    if cfg!(target_os = "macos") {
-        ("fn", "fn+space")
-    } else if cfg!(target_os = "windows") {
-        ("ctrl+win", "ctrl+win+shift")
-    } else {
-        ("left_ctrl+space", "left_ctrl+shift+space")
-    }
-}
-
 fn env(key: &str) -> Option<String> {
     std::env::var(key).ok().filter(|v| !v.trim().is_empty())
 }
 
-/// Dictation languages: `VOCALIS_LANGUAGES` (comma-separated), else the system
-/// locale's language, else auto-detect.
-fn languages() -> Vec<String> {
-    if let Some(v) = env("VOCALIS_LANGUAGES") {
-        return v
-            .split(',')
-            .map(|s| s.trim().to_lowercase())
-            .filter(|s| !s.is_empty())
-            .collect();
-    }
-    env("LANG")
-        .and_then(|l| l.split(['_', '.', '-']).next().map(str::to_lowercase))
-        .filter(|l| l.len() == 2 && l != "c")
-        .into_iter()
-        .collect()
-}
-
-fn start_engine<R: Runtime>(app: &AppHandle<R>, auth: Arc<auth::Auth>) -> Result<(), String> {
+fn start_engine<R: Runtime>(
+    app: &AppHandle<R>,
+    auth: Arc<auth::Auth>,
+    settings: engine::SharedSettings,
+) -> Result<(), String> {
     let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    let (primary, hands_free) = default_hotkeys();
     let cfg = engine::EngineConfig {
         data_dir,
         gateway_url: env("VOCALIS_GATEWAY_URL").unwrap_or_else(|| "https://api.vocalis.app".into()),
         token: Arc::new(move || auth.access_token()),
-        primary: vocalis_input::Chord::parse(primary).map_err(|e| e.to_string())?,
-        hands_free: vocalis_input::Chord::parse(hands_free).map_err(|e| e.to_string())?,
+        settings,
         gesture: vocalis_core::gesture::Config::default(),
-        languages: languages(),
         keep_on_clipboard: false,
         dev_wav: env("VOCALIS_DEV_WAV").map(std::path::PathBuf::from),
     };
@@ -232,6 +207,17 @@ pub fn run() {
             history_cmds::history_delete,
             history_cmds::history_audio,
             history_cmds::history_copy,
+            setup_cmds::settings_get,
+            setup_cmds::settings_set_languages,
+            setup_cmds::settings_set_microphone,
+            setup_cmds::settings_set_hotkeys,
+            setup_cmds::settings_set_setup_completed,
+            setup_cmds::hotkey_record,
+            setup_cmds::mic_list,
+            setup_cmds::mic_test_start,
+            setup_cmds::mic_test_stop,
+            setup_cmds::permissions_status,
+            setup_cmds::open_permission_settings,
         ])
         .setup(|app| {
             use tauri_plugin_deep_link::DeepLinkExt;
@@ -240,6 +226,14 @@ pub fn run() {
             let auth = Arc::new(auth::Auth::new(&web_url, key_dir, env("VOCALIS_DEV_TOKEN")));
             app.manage(auth.clone());
             spawn_refresher(app.handle().clone(), auth.clone());
+            let settings = setup_cmds::AppSettings::load(&app.path().app_data_dir()?);
+            if let Some(langs) = env("VOCALIS_LANGUAGES") {
+                // Development override; not saved.
+                let langs = langs.split(',').map(str::to_owned).collect();
+                let _ = settings.shared.write().expect("settings lock").set_languages(langs);
+            }
+            let shared = settings.shared.clone();
+            app.manage(settings);
             #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
             let _ = app.deep_link().register_all();
             let handle = app.handle().clone();
@@ -266,7 +260,7 @@ pub fn run() {
                 tray = tray.icon(icon.clone());
             }
             tray.build(app)?;
-            if let Err(e) = start_engine(app.handle(), auth) {
+            if let Err(e) = start_engine(app.handle(), auth, shared) {
                 tracing::error!(target: "engine", error = %e, "dictation engine did not start");
             }
             Ok(())

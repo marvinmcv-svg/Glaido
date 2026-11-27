@@ -91,6 +91,23 @@ cd apps/desktop && pnpm tauri dev
 - Deep-link delivery into a running app on Linux needs D-Bus and `xdg-mime`, which this container lacks.
 
 **Still open in P1**
-- Setup wizard (permissions → mic test with device picker and meter → languages → first dictation); languages and hotkeys are not user-settable yet.
+- ~~Setup wizard~~ (shipped, see below).
 - Frontmost-app context (`crates/context`), paste into the starting app, macOS "nowhere to paste" detection.
 - Induced-failure checks for network drop and screen lock (kill is covered); latency harness for §5.9 (needs provider keys); 10-app manual QA and macOS/Windows hardware checks.
+
+## 2026-11-27 — P1 third slice: setup wizard and saved settings
+
+**Shipped**
+- **Setup wizard (FE, DN):** shown on first run and from Settings → Restart wizard. Steps: **Permissions** (macOS Accessibility via `AXIsProcessTrusted`, re-checked every 2 s and auto-advancing once granted; links to the privacy panes; a Wayland notice on Linux), **Microphone** (device picker with the system default, live input meter, "we can hear you" confirmation; nothing recorded), **Languages** (99 languages named via `Intl` in the UI locale and in themselves, accent-insensitive search, at least one kept, defaults to the system language), **First dictation** (current shortcut with **Change**, a practice box, success detected from History, sign-in prompt if needed). Skip is always available.
+- **Hotkey picker (DN):** `ChordRecorder` records through the global listener, so Fn and modifier-only shortcuts work; Esc cancels; invalid combinations get the existing chord errors.
+- **Settings file (DN):** `settings.json` (languages, microphone, per-platform hotkeys, setup done), atomic writes, damaged files set aside, hand-edited values sanitized. The engine reads languages and the microphone at every start (an unplugged saved mic falls back to the default) and rebuilds its hotkeys live.
+- **macOS:** `Info.plist` with `NSMicrophoneUsageDescription`; without it macOS refuses microphone access.
+
+**Verified (Ubuntu 24.04 container)**
+- 165 Rust tests (new: key-name and chord round trips, recorder, settings defaults/validation/recovery), clippy, rustfmt; desktop Vitest (languages, chord display), typecheck and build; Prettier; clean-room scan.
+- Desktop E2E 3/3 with a saved non-default shortcut (F8): it dictates and pastes, the old default no longer starts anything, and kill-9 recovery still works.
+- Every wizard step rendered and clicked through in Chromium against mocked engine commands; the right settings commands are sent.
+
+**Not verified**
+- Live hotkey recording and live hotkey changes in the running app (unit-tested parts only; driving Tauri commands from the E2E isn't wired up).
+- Microphone test and device list: the container has no audio devices. Accessibility check and privacy-pane links: macOS only, built by CI but not run.
