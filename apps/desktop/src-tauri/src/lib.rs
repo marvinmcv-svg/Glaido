@@ -2,10 +2,13 @@
 //! dictation engine (hotkeys, microphone, gateway, paste, history).
 
 mod adapters;
+mod auth;
 mod engine;
 mod gateway_ws;
 mod history_cmds;
 mod secrets;
+
+use std::sync::Arc;
 
 use serde::Serialize;
 use tauri::menu::{Menu, MenuItem};
@@ -108,15 +111,13 @@ fn languages() -> Vec<String> {
         .collect()
 }
 
-fn start_engine<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+fn start_engine<R: Runtime>(app: &AppHandle<R>, auth: Arc<auth::Auth>) -> Result<(), String> {
     let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let (primary, hands_free) = default_hotkeys();
-    // Until sign-in lands (P1 webapp deep link), a development token can be supplied.
-    let dev_token = env("VOCALIS_DEV_TOKEN");
     let cfg = engine::EngineConfig {
         data_dir,
         gateway_url: env("VOCALIS_GATEWAY_URL").unwrap_or_else(|| "https://api.vocalis.app".into()),
-        token: std::sync::Arc::new(move || dev_token.clone()),
+        token: Arc::new(move || auth.access_token()),
         primary: vocalis_input::Chord::parse(primary).map_err(|e| e.to_string())?,
         hands_free: vocalis_input::Chord::parse(hands_free).map_err(|e| e.to_string())?,
         gesture: vocalis_core::gesture::Config::default(),
@@ -137,14 +138,72 @@ fn show_main<R: Runtime>(app: &AppHandle<R>) {
     }
 }
 
-/// Deep links (`vocalis://…`) are forwarded to the main window, which handles
-/// auth callbacks and record links (P1).
+/// Deep links (`vocalis://…`): sign-in callbacks are finished here; the rest
+/// (record links, extension setup) go to the main window.
 fn forward_deep_links<R: Runtime>(app: &AppHandle<R>, urls: Vec<String>) {
-    let urls: Vec<String> = urls.into_iter().filter(|u| u.starts_with("vocalis://")).collect();
-    if !urls.is_empty() {
-        show_main(app);
-        let _ = app.emit_to("main", "deep-link", urls);
+    let (sign_in, rest): (Vec<String>, Vec<String>) = urls
+        .into_iter()
+        .filter(|u| u.starts_with("vocalis://"))
+        .partition(|u| auth::is_callback(u));
+    for link in sign_in {
+        let app = app.clone();
+        tauri::async_runtime::spawn(async move {
+            let auth = app.state::<Arc<auth::Auth>>().inner().clone();
+            let payload = match auth.complete(&link).await {
+                Ok(account) => serde_json::json!({ "account": account }),
+                Err(e) => serde_json::json!({ "account": auth.account(), "error": e.to_string() }),
+            };
+            show_main(&app);
+            let _ = app.emit_to("main", "auth-changed", payload);
+        });
     }
+    if !rest.is_empty() {
+        show_main(app);
+        let _ = app.emit_to("main", "deep-link", rest);
+    }
+}
+
+#[tauri::command]
+fn auth_status(auth: tauri::State<'_, Arc<auth::Auth>>) -> Option<auth::Account> {
+    auth.account()
+}
+
+/// Open the web app to sign in; the browser comes back through a deep link.
+#[tauri::command]
+fn auth_sign_in<R: Runtime>(app: AppHandle<R>, auth: tauri::State<'_, Arc<auth::Auth>>) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let url = auth.begin();
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|_| "Couldn't open your browser.".to_owned())
+}
+
+#[tauri::command]
+async fn auth_sign_out<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
+    let auth = app.state::<Arc<auth::Auth>>().inner().clone();
+    auth.sign_out().await;
+    let _ = app.emit_to("main", "auth-changed", serde_json::json!({ "account": null }));
+    Ok(())
+}
+
+/// Keep the access token fresh while signed in.
+fn spawn_refresher<R: Runtime>(app: AppHandle<R>, auth: Arc<auth::Auth>) {
+    tauri::async_runtime::spawn(async move {
+        loop {
+            match auth.refresh_if_due().await {
+                Err(e @ auth::AuthError::SessionEnded) => {
+                    let _ = app.emit_to(
+                        "main",
+                        "auth-changed",
+                        serde_json::json!({ "account": null, "error": e.to_string() }),
+                    );
+                }
+                Err(e) => tracing::info!(target: "auth", error = %e, "token refresh will retry"),
+                Ok(()) => {}
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(20)).await;
+        }
+    });
 }
 
 pub fn run() {
@@ -160,9 +219,13 @@ pub fn run() {
             show_main(app);
         }))
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             app_info,
             toggle_bar,
+            auth_status,
+            auth_sign_in,
+            auth_sign_out,
             history_cmds::history_list,
             history_cmds::history_search,
             history_cmds::history_retry,
@@ -172,6 +235,11 @@ pub fn run() {
         ])
         .setup(|app| {
             use tauri_plugin_deep_link::DeepLinkExt;
+            let key_dir = app.path().app_data_dir()?.join("keys");
+            let web_url = env("VOCALIS_WEB_URL").unwrap_or_else(|| "https://app.vocalis.app".into());
+            let auth = Arc::new(auth::Auth::new(&web_url, key_dir, env("VOCALIS_DEV_TOKEN")));
+            app.manage(auth.clone());
+            spawn_refresher(app.handle().clone(), auth.clone());
             #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]
             let _ = app.deep_link().register_all();
             let handle = app.handle().clone();
@@ -198,7 +266,7 @@ pub fn run() {
                 tray = tray.icon(icon.clone());
             }
             tray.build(app)?;
-            if let Err(e) = start_engine(app.handle()) {
+            if let Err(e) = start_engine(app.handle(), auth) {
                 tracing::error!(target: "engine", error = %e, "dictation engine did not start");
             }
             Ok(())

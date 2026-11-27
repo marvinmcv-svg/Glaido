@@ -109,9 +109,33 @@ do $$ begin
 exception when insufficient_privilege or unique_violation then null; end $$;
 reset role;
 
+-- Desktop handoffs: invisible and unwritable for users; the service role works.
+insert into public.desktop_handoffs (code_hash, challenge, user_id)
+values (repeat('a', 64), repeat('b', 43), '00000000-0000-0000-0000-00000000000a');
+select pg_temp.act_as('00000000-0000-0000-0000-00000000000a');
+do $$ begin
+  perform 1 from public.desktop_handoffs;
+  raise exception 'FAILED: a user can read desktop handoffs';
+exception when insufficient_privilege then null; end $$;
+do $$ begin
+  insert into public.desktop_handoffs (code_hash, challenge, user_id)
+  values (repeat('c', 64), repeat('d', 43), '00000000-0000-0000-0000-00000000000a');
+  raise exception 'FAILED: a user created a desktop handoff';
+exception when insufficient_privilege then null; end $$;
+reset role;
+set role service_role;
+select pg_temp.expect((select count(*) from public.desktop_handoffs) = 1, 'service role reads handoffs');
+reset role;
+do $$ begin
+  insert into public.desktop_handoffs (code_hash, challenge, user_id)
+  values ('not-a-hash', repeat('d', 43), '00000000-0000-0000-0000-00000000000a');
+  raise exception 'FAILED: malformed code hash accepted';
+exception when check_violation then null; end $$;
+
 -- Deleting a user cascades their data.
 delete from public.teams;
 delete from auth.users where id = '00000000-0000-0000-0000-00000000000a';
 select pg_temp.expect((select count(*) from public.dictionary_entries) = 0, 'cascade delete');
+select pg_temp.expect((select count(*) from public.desktop_handoffs) = 0, 'handoffs cascade delete');
 
 select 'ALL RLS TESTS PASSED' as result;

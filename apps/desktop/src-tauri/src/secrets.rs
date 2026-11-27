@@ -46,13 +46,40 @@ pub fn key(name: &str, fallback_dir: &Path) -> [u8; 32] {
     file_key(name, fallback_dir)
 }
 
-fn file_key(name: &str, dir: &Path) -> [u8; 32] {
-    let path = dir.join(format!("{name}.key"));
-    if let Some(k) = std::fs::read_to_string(&path).ok().and_then(|s| from_hex(&s)) {
-        return k;
+/// A string secret (the sign-in refresh session), in the keychain when one is
+/// reachable, else in a user-only file under `fallback_dir`.
+pub fn get_secret(name: &str, fallback_dir: &Path) -> Option<String> {
+    if let Ok(entry) = keyring::Entry::new(SERVICE, name) {
+        match entry.get_password() {
+            Ok(s) => return Some(s),
+            Err(keyring::Error::NoEntry) => return None,
+            Err(_) => {}
+        }
     }
-    let k = vocalis_audio::journal::generate_key();
-    let _ = std::fs::create_dir_all(dir);
+    std::fs::read_to_string(fallback_dir.join(format!("{name}.secret"))).ok()
+}
+
+pub fn set_secret(name: &str, value: &str, fallback_dir: &Path) {
+    if let Ok(entry) = keyring::Entry::new(SERVICE, name) {
+        if entry.set_password(value).is_ok() {
+            return;
+        }
+    }
+    tracing::warn!(target: "secrets", key = name, "OS keychain unavailable; using a user-only file");
+    write_private(&fallback_dir.join(format!("{name}.secret")), value.as_bytes());
+}
+
+pub fn delete_secret(name: &str, fallback_dir: &Path) {
+    if let Ok(entry) = keyring::Entry::new(SERVICE, name) {
+        let _ = entry.delete_credential();
+    }
+    let _ = std::fs::remove_file(fallback_dir.join(format!("{name}.secret")));
+}
+
+fn write_private(path: &Path, bytes: &[u8]) {
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
     #[cfg(unix)]
     {
         use std::io::Write;
@@ -62,15 +89,24 @@ fn file_key(name: &str, dir: &Path) -> [u8; 32] {
             .create(true)
             .truncate(true)
             .mode(0o600)
-            .open(&path)
+            .open(path)
         {
-            let _ = f.write_all(to_hex(&k).as_bytes());
+            let _ = f.write_all(bytes);
         }
     }
     #[cfg(not(unix))]
     {
-        let _ = std::fs::write(&path, to_hex(&k));
+        let _ = std::fs::write(path, bytes);
     }
+}
+
+fn file_key(name: &str, dir: &Path) -> [u8; 32] {
+    let path = dir.join(format!("{name}.key"));
+    if let Some(k) = std::fs::read_to_string(&path).ok().and_then(|s| from_hex(&s)) {
+        return k;
+    }
+    let k = vocalis_audio::journal::generate_key();
+    write_private(&path, to_hex(&k).as_bytes());
     k
 }
 

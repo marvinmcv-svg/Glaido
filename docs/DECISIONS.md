@@ -60,3 +60,13 @@ Format: context → decision → consequences. Status is one of *proposed*, *acc
 5. **Cleanup never blocks dictation.** A refusal, `max_tokens` stop, error or 8 s timeout falls back to deterministic formatting (`formatting::fallback`), and the reply says `cleaned: false`.
 6. **Wire tolerance:** every field of `app` and `tags` is optional on the wire.
 **Zero retention.** Logs carry durations, sizes, provider names and the plan kind only, verified by `tests/dictate_logging.rs`. Provider-side zero retention is a contract setting with each provider (Groq, Deepgram, Anthropic) and must be confirmed before launch; no retention-excluded features (e.g. message threads, batches, files) are used.
+
+## ADR-0012: Desktop sign-in is a PKCE handoff through the web app — accepted (2026-11-27)
+**Context.** P1 asks for "sign-in via the web app deep link" (§5.6 `/auth/desktop-callback`). The desktop app must end up with its own Supabase session without ever seeing the user's password, and every sign-in method the web app supports (email, magic link, OAuth) must work.
+**Decision.**
+1. The app makes a PKCE verifier (RFC 7636, S256) and a random state, and opens `/auth/desktop?challenge=…&state=…`. Signed-out users go through `/login` and come back.
+2. The signed-in user clicks **Open Vocalis**. A server action stores `sha256(code)` with the challenge and user id in `desktop_handoffs` (service role only: RLS on, no policies, no grants to `anon`/`authenticated`) and the browser follows `vocalis://auth/callback?code=…&state=…`.
+3. The app checks the state against its pending sign-in (single use, 15 minutes) and POSTs `{ code, verifier }` to `/api/desktop/exchange`. The route deletes the row (single use, 5 minutes; a wrong verifier still burns it), checks the verifier, and mints a **separate** session: an admin-generated magic-link token (never emailed) verified by a throwaway anon client. It returns the tokens plus the public Supabase URL and anon key.
+4. The refresh token is stored in the OS keychain (user-only file fallback, as for the encryption keys). The app refreshes 2 minutes before expiry; a 400/401 from the refresh endpoint signs this device out. Sign out revokes only this device's session (`scope=local`).
+**Why not OAuth straight from the app?** It would skip email/password users and anyone already signed in on the web. **Why not hand over the browser's tokens?** Refresh-token rotation would sign one of the two out, and a deep link can be observed by other local apps; with PKCE an intercepted code is useless.
+**Needs.** `SUPABASE_SERVICE_ROLE_KEY` in the web app's server environment (never `NEXT_PUBLIC_`). `VOCALIS_DEV_TOKEN` still overrides sign-in for development and E2E.

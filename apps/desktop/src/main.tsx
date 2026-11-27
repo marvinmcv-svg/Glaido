@@ -3,6 +3,7 @@ import { Button, Card, Keycap, StatCard, Switch } from "@vocalis/ui";
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import icon from "../assets/app-icon.svg";
+import { AccountRow } from "./Account";
 import { Activity } from "./Activity";
 import "./app.css";
 import { currentPlatform, DEFAULT_HOTKEYS } from "./platform";
@@ -81,6 +82,7 @@ function App() {
           </>
         ) : page === "Settings" ? (
           <Card>
+            <AccountRow />
             <div className="row">
               <div>Interaction sounds</div>
               <Switch checked={sounds} onChange={setSounds} label="Interaction sounds" />
