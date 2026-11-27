@@ -45,3 +45,29 @@ cd apps/desktop && pnpm tauri dev
 - Ledger rows are audit-sourced; REA re-verification is pending (PLAN O5).
 
 **Metrics:** none of the §5.9 latency budgets apply yet (no audio path). The bar preview does not record anything.
+
+## 2026-11-27 — P1 Dictation MVP, first slice (local branch `p1/dictation`, not pushed)
+
+**Shipped**
+- `crates/audio`: streaming resampler to 16 kHz, level meter, energy VAD (noise-floor tracking that handles noisy rooms, hum, long speech and push-to-talk starts), WAV codec, crash-safe AES-256-GCM `.wav.enc` journal, cpal capture.
+- `crates/store`: SQLCipher history with trigram search, day grouping, 100-recording audio retention, integrity check, quarantine-and-restore from rotating backups.
+- Gateway `WS /v1/dictate`: Groq/Deepgram STT with failover, Claude cleanup (`claude-haiku-5-5`, effort low) with deterministic fallback, wake word/snippet/empty short-circuits, input limits (ADR-0011).
+- `crates/input`: chord matching feeding the gesture recognizer; rdev global listener.
+- `crates/inject`: paste with clipboard save/restore, per-OS combos.
+- `crates/session`: the orchestrator: streaming while recording, journaling, 10-minute cap, silent-recording drop, slow-connection state, timeout, late results to History, failed records with audio, Esc keeps audio, Retry.
+- Desktop: engine wiring, live bar with levels and earcons, keychain keys.
+- `e2e/desktop/run.sh`: real app + real gateway on Xvfb with synthetic hotkeys, WAV input and mock STT.
+
+**Verified (Ubuntu 24.04 container)**
+- 147 Rust tests, clippy `-D warnings`, rustfmt, Prettier, clean-room scan.
+- Desktop E2E passes 3/3: Left Ctrl+Space hold → "Hello from the end to end test" pasted into a focused text box, user clipboard restored, encrypted recording kept, no transcript in gateway logs.
+- Guards proven to fail when broken: transcript logging in the dictation path.
+
+**Bugs found by tests and fixed:** VAD ignored speech starting on the first frame and treated steady noise as speech; history repair could not open damaged files (and now quarantines instead of deleting); clients omitting optional `app` fields were rejected; X11 clipboard restore lost the contents.
+
+**Not done yet in P1**
+- Setup wizard (permissions → mic test → languages → first dictation) and sign-in via the webapp deep link (a dev token is used meanwhile).
+- History UI (list by day, copy, playback, Retry button), crash-recovery scan for orphaned journals, notifications UI.
+- Frontmost-app context (`crates/context`), paste into the starting app, macOS "nowhere to paste" detection.
+- macOS and Windows: compile on CI only; Fn/Globe detection, Accessibility prompts and paste need a real Mac/PC.
+- Latency harness for the §5.9 budgets (needs real provider keys).
