@@ -58,6 +58,27 @@ fn failed_then_retry_completes() {
 }
 
 #[test]
+fn contains_and_delete_one_record() {
+    let dir = tempfile::tempdir().unwrap();
+    let (s, _) = open(dir.path());
+    let keep = s.insert(rec("keep this one", T0)).unwrap();
+    let gone = s
+        .insert(NewRecord {
+            audio_path: Some("gone.wav.enc".into()),
+            ..rec("delete this one", T0 + 1)
+        })
+        .unwrap();
+    assert!(s.contains(&gone.id).unwrap());
+    assert_eq!(s.delete(&gone.id).unwrap().as_deref(), Some("gone.wav.enc"));
+    assert!(!s.contains(&gone.id).unwrap());
+    assert!(
+        s.search("this one").unwrap().iter().all(|r| r.id == keep.id),
+        "FTS row removed too"
+    );
+    assert!(matches!(s.delete(&gone.id), Err(StoreError::NotFound)));
+}
+
+#[test]
 fn search_rules() {
     let dir = tempfile::tempdir().unwrap();
     let (s, _) = open(dir.path());

@@ -4,6 +4,7 @@
 mod adapters;
 mod engine;
 mod gateway_ws;
+mod history_cmds;
 mod secrets;
 
 use serde::Serialize;
@@ -123,7 +124,9 @@ fn start_engine<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
         keep_on_clipboard: false,
         dev_wav: env("VOCALIS_DEV_WAV").map(std::path::PathBuf::from),
     };
-    engine::start(app.clone(), cfg)
+    let handle = engine::start(app.clone(), cfg)?;
+    app.manage(handle);
+    Ok(())
 }
 
 fn show_main<R: Runtime>(app: &AppHandle<R>) {
@@ -157,7 +160,16 @@ pub fn run() {
             show_main(app);
         }))
         .plugin(tauri_plugin_deep_link::init())
-        .invoke_handler(tauri::generate_handler![app_info, toggle_bar])
+        .invoke_handler(tauri::generate_handler![
+            app_info,
+            toggle_bar,
+            history_cmds::history_list,
+            history_cmds::history_search,
+            history_cmds::history_retry,
+            history_cmds::history_delete,
+            history_cmds::history_audio,
+            history_cmds::history_copy,
+        ])
         .setup(|app| {
             use tauri_plugin_deep_link::DeepLinkExt;
             #[cfg(any(target_os = "linux", all(debug_assertions, windows)))]

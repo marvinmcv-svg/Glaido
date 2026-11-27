@@ -7,13 +7,16 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use tauri::{AppHandle, Runtime};
+use tauri::{AppHandle, Emitter, Runtime};
 use tokio::sync::mpsc;
 use vocalis_audio::dsp::{to_i16, Resampler};
 use vocalis_audio::TARGET_RATE;
 use vocalis_core::gesture::{self, Action, Binding, Recognizer};
 use vocalis_input::{Chord, ChordTracker, KeyEvent};
-use vocalis_session::{AudioSignal, Controller, StartSettings};
+use vocalis_session::{AudioSignal, Controller, History, StartSettings};
+use vocalis_store::RecordStatus;
+
+use crate::adapters::StoreHistory;
 
 use crate::gateway_ws::{TokenSource, WsGateway};
 
@@ -30,10 +33,31 @@ pub struct EngineConfig {
     pub dev_wav: Option<PathBuf>,
 }
 
-enum Event {
+pub(crate) enum Event {
     Key(KeyEvent),
     Audio(Vec<i16>),
     CaptureFailed(String),
+    /// Re-transcribe a failed record from its saved audio.
+    Retry(String),
+}
+
+/// Puts text on the clipboard.
+pub type Copier = Arc<dyn Fn(&str) -> Result<(), String> + Send + Sync>;
+
+/// What the UI commands need from a running engine (Tauri managed state).
+pub struct EngineHandle {
+    pub history: Arc<StoreHistory>,
+    pub audio_key: [u8; 32],
+    pub(crate) tx: mpsc::Sender<Event>,
+    pub copier: Copier,
+}
+
+impl EngineHandle {
+    pub fn retry(&self, id: String) -> Result<(), String> {
+        self.tx
+            .try_send(Event::Retry(id))
+            .map_err(|_| "the dictation engine is busy".to_owned())
+    }
 }
 
 fn now_ms() -> i64 {
@@ -44,7 +68,7 @@ fn now_ms() -> i64 {
 }
 
 /// Start the engine. Returns immediately; work continues in the background.
-pub fn start<R: Runtime>(app: AppHandle<R>, cfg: EngineConfig) -> Result<(), String> {
+pub fn start<R: Runtime>(app: AppHandle<R>, cfg: EngineConfig) -> Result<EngineHandle, String> {
     let journal_dir = cfg.data_dir.join("recordings");
     std::fs::create_dir_all(&journal_dir).map_err(|e| e.to_string())?;
     let key_dir = cfg.data_dir.join("keys");
@@ -57,15 +81,33 @@ pub fn start<R: Runtime>(app: AppHandle<R>, cfg: EngineConfig) -> Result<(), Str
     }
 
     let ui = Arc::new(crate::adapters::TauriUi::new(app.clone(), cfg.keep_on_clipboard));
-    let history = Arc::new(crate::adapters::StoreHistory {
-        store: std::sync::Mutex::new(store),
+    let notify_app = app.clone();
+    let history = Arc::new(StoreHistory::new(store, move || {
+        let _ = notify_app.emit_to("main", "history-changed", ());
+    }));
+
+    // Audio left behind by a crash or forced quit becomes failed records with Retry.
+    let found = vocalis_session::recovery::scan(&journal_dir, &audio_key, |id| {
+        history.lock().contains(id).unwrap_or(true)
     });
+    if !found.recovered.is_empty() || found.unreadable > 0 {
+        tracing::warn!(
+            target: "engine",
+            recovered = found.recovered.len(),
+            unreadable = found.unreadable,
+            "recovered interrupted recordings"
+        );
+    }
+    for entry in found.recovered {
+        history.insert(entry);
+    }
+
     let gateway = Arc::new(WsGateway::new(&cfg.gateway_url, cfg.token.clone()));
     let controller = Controller::new(
         vocalis_session::Config::new(journal_dir, audio_key),
         gateway,
-        ui,
-        history,
+        ui.clone(),
+        history.clone(),
     );
     let tracker = ChordTracker::new(vec![
         (Binding::Primary, cfg.primary.clone()),
@@ -94,9 +136,16 @@ pub fn start<R: Runtime>(app: AppHandle<R>, cfg: EngineConfig) -> Result<(), Str
         languages: cfg.languages.clone(),
         ..Default::default()
     };
+    let handle = EngineHandle {
+        history: history.clone(),
+        audio_key,
+        tx: tx.clone(),
+        copier: Arc::new(move |text: &str| ui.copy(text)),
+    };
     tauri::async_runtime::spawn(run(
         rx,
         tx,
+        history,
         controller,
         tracker,
         Recognizer::new(cfg.gesture),
@@ -104,13 +153,14 @@ pub fn start<R: Runtime>(app: AppHandle<R>, cfg: EngineConfig) -> Result<(), Str
         epoch,
         cfg.dev_wav,
     ));
-    Ok(())
+    Ok(handle)
 }
 
 #[allow(clippy::too_many_arguments)]
 async fn run(
     mut rx: mpsc::Receiver<Event>,
     tx: mpsc::Sender<Event>,
+    history: Arc<StoreHistory>,
     mut controller: Controller,
     mut tracker: ChordTracker,
     mut recognizer: Recognizer,
@@ -130,6 +180,18 @@ async fn run(
                         stop_capture(&mut capture);
                         controller.stop();
                         recognizer = Recognizer::new(recognizer.config());
+                    }
+                    continue;
+                }
+                Some(Event::Retry(id)) => {
+                    let record = history.lock().get(&id);
+                    match record {
+                        Ok(r) if r.status == RecordStatus::Failed => match r.audio_path {
+                            Some(p) => controller.retry(id, PathBuf::from(p), settings.clone()),
+                            None => tracing::warn!(target: "engine", "retry skipped: the record has no audio"),
+                        },
+                        Ok(_) => tracing::info!(target: "engine", "retry skipped: the record did not fail"),
+                        Err(e) => tracing::warn!(target: "engine", error = %e, "retry skipped"),
                     }
                     continue;
                 }

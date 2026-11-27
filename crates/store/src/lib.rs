@@ -305,6 +305,24 @@ impl Store {
             .ok_or(StoreError::NotFound)
     }
 
+    /// Whether a record with this id exists (crash recovery uses it to spot
+    /// orphaned journals).
+    pub fn contains(&self, id: &str) -> Result<bool, StoreError> {
+        Ok(self
+            .conn
+            .query_row("SELECT 1 FROM records WHERE id = ?1", [id], |_| Ok(()))
+            .optional()?
+            .is_some())
+    }
+
+    /// Delete one record (the reference can't; spec 4.6 BETTER). Returns its
+    /// audio path, if any, for the caller to delete.
+    pub fn delete(&self, id: &str) -> Result<Option<String>, StoreError> {
+        let audio = self.get(id)?.audio_path;
+        self.conn.execute("DELETE FROM records WHERE id = ?1", [id])?;
+        Ok(audio)
+    }
+
     /// A retry or a late result succeeded: store the text and clear the error.
     pub fn complete(&self, id: &str, text: &str, words: u32, wpm: u32) -> Result<Record, StoreError> {
         let n = self.conn.execute(

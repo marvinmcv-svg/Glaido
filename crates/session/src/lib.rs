@@ -16,6 +16,7 @@
 //!    too; `discard` (an accidental tap) keeps nothing.
 
 pub mod ports;
+pub mod recovery;
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};

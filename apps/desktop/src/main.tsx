@@ -3,8 +3,10 @@ import { Button, Card, Keycap, StatCard, Switch } from "@vocalis/ui";
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import icon from "../assets/app-icon.svg";
+import { Activity } from "./Activity";
 import "./app.css";
 import { currentPlatform, DEFAULT_HOTKEYS } from "./platform";
+import { Toasts } from "./Toasts";
 
 type AppInfo = { name: string; version: string; coreVersion: string };
 const PAGES = ["Home", "Dictionary", "Snippets", "Formatting", "Settings"] as const;
@@ -75,6 +77,7 @@ function App() {
                 </Button>
               </div>
             </Card>
+            <Activity />
           </>
         ) : page === "Settings" ? (
           <Card>
@@ -93,6 +96,7 @@ function App() {
           <p className="muted">Coming in P2.</p>
         )}
       </main>
+      <Toasts />
     </div>
   );
 }

@@ -30,6 +30,19 @@ impl<R: Runtime> TauriUi<R> {
     }
 }
 
+impl<R: Runtime> TauriUi<R> {
+    /// Put text on the clipboard (History "Copy", notification "Copy"). Uses the
+    /// shared handle for the same X11 ownership reason as `paste`.
+    pub fn copy(&self, text: &str) -> Result<(), String> {
+        let mut guard = self.clipboard.lock().expect("clipboard lock");
+        if guard.is_none() {
+            *guard = Some(OsClipboard::new().map_err(|e| e.to_string())?);
+        }
+        let clip = guard.as_mut().expect("clipboard initialized");
+        vocalis_inject::copy(text, clip).map_err(|e| e.to_string())
+    }
+}
+
 impl<R: Runtime> Ui for TauriUi<R> {
     fn bar(&self, state: BarState) {
         let _ = self.app.emit_to("bar", "bar-state", state);
@@ -106,6 +119,25 @@ impl<R: Runtime> Ui for TauriUi<R> {
 
 pub struct StoreHistory {
     pub store: Mutex<Store>,
+    /// Called after every change so the History list can refresh.
+    pub on_change: Box<dyn Fn() + Send + Sync>,
+}
+
+impl StoreHistory {
+    pub fn new(store: Store, on_change: impl Fn() + Send + Sync + 'static) -> Self {
+        Self {
+            store: Mutex::new(store),
+            on_change: Box::new(on_change),
+        }
+    }
+
+    pub fn lock(&self) -> std::sync::MutexGuard<'_, Store> {
+        self.store.lock().expect("store lock")
+    }
+
+    pub fn changed(&self) {
+        (self.on_change)();
+    }
 }
 
 impl History for StoreHistory {
@@ -141,17 +173,21 @@ impl History for StoreHistory {
             }
             Err(err) => tracing::error!(target: "history", error = %err, "could not save record"),
         }
+        drop(store);
+        self.changed();
     }
 
     fn complete(&self, id: &str, text: &str, words: u32, wpm: u32) {
-        if let Err(err) = self.store.lock().expect("store lock").complete(id, text, words, wpm) {
+        if let Err(err) = self.lock().complete(id, text, words, wpm) {
             tracing::error!(target: "history", error = %err, "could not update record");
         }
+        self.changed();
     }
 
     fn fail(&self, id: &str, code: &str) {
-        if let Err(err) = self.store.lock().expect("store lock").fail(id, code) {
+        if let Err(err) = self.lock().fail(id, code) {
             tracing::error!(target: "history", error = %err, "could not update record");
         }
+        self.changed();
     }
 }
