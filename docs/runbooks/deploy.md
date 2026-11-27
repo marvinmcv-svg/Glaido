@@ -2,7 +2,7 @@
 
 | Part | Host | Where | Source |
 |---|---|---|---|
-| Webapp (Next.js) | Vercel, team "marvinmcv-svg's projects", project `vocalis-webapp` | https://vocalis-webapp-marvinmcv-svgs-projects.vercel.app | `apps/webapp`, root directory set in the project |
+| Webapp (Next.js) | Vercel, team "marvinmcv-svg's projects", project `vocalis-webapp` | https://vocalis-webapp.vercel.app (also vocalis-webapp-marvinmcv-svgs-projects.vercel.app) | `apps/webapp`, root directory set in the project |
 | Gateway (Rust) | Railway, project `vocalis`, service `gateway` | https://gateway-production-80039d71.up.railway.app | `apps/gateway/Dockerfile`, health check `/healthz` |
 | Auth + database | Supabase project `vocalis` (`zptahygqxhhzshewusma`, us-east-1) | https://zptahygqxhhzshewusma.supabase.co | `supabase/migrations/*` |
 
@@ -16,6 +16,6 @@ All three currently follow the branch `claude/focused-carson-pf34w8`. After PR #
 
 ## Still to do by hand
 
-1. Supabase dashboard → Authentication → URL Configuration: set **Site URL** to the Vercel URL and add `https://vocalis-webapp-marvinmcv-svgs-projects.vercel.app/auth/callback` and `vocalis://auth/callback` to the redirect URLs. Until then, confirmation emails and magic links point at the Supabase default.
+1. Supabase dashboard → Authentication → URL Configuration: set **Site URL** to the Vercel URL and add `https://vocalis-webapp.vercel.app/auth/callback` and `vocalis://auth/callback` to the redirect URLs. Until then, confirmation emails and magic links point at the Supabase default.
 2. Authentication → Providers: enable Google, GitHub and Apple once you have client IDs.
 3. Email: hosted Supabase's built-in mailer is rate limited; configure custom SMTP before inviting users.
