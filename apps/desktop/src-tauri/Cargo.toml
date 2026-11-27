@@ -14,9 +14,21 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+async-trait = "0.1"
+futures-util = "0.3"
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
 serde.workspace = true
 serde_json.workspace = true
 tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
 tauri-plugin-deep-link = "2"
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
+tokio.workspace = true
+tokio-tungstenite = { version = "0.27", features = ["rustls-tls-native-roots"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+vocalis-audio = { path = "../../../crates/audio", features = ["capture"] }
 vocalis-core.workspace = true
+vocalis-inject = { path = "../../../crates/inject", features = ["os"] }
+vocalis-input = { path = "../../../crates/input", features = ["listen"] }
+vocalis-session = { path = "../../../crates/session" }
+vocalis-store = { path = "../../../crates/store" }

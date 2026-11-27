@@ -1,0 +1,157 @@
+//! Desktop implementations of the session ports: the UI (bar, sounds, notices,
+//! paste) and History (the encrypted store).
+
+use std::sync::Mutex;
+
+use serde_json::json;
+use tauri::{AppHandle, Emitter, Manager, Runtime};
+use vocalis_core::formatting::FieldKind;
+use vocalis_inject::os::{OsClipboard, OsKeystrokes};
+use vocalis_inject::{combo_for, Os, PasteOptions};
+use vocalis_session::{BarState, History, NewEntry, Notice, PasteOutcome, Sound, Ui};
+use vocalis_store::{NewRecord, RecordStatus, RecordType, Store};
+
+pub struct TauriUi<R: Runtime> {
+    pub app: AppHandle<R>,
+    pub keep_on_clipboard: bool,
+    /// One clipboard handle for the app's lifetime. On X11 the clipboard is
+    /// owned by a process: dropping the handle after restoring the user's
+    /// clipboard would make the restored contents vanish.
+    pub clipboard: Mutex<Option<OsClipboard>>,
+}
+
+impl<R: Runtime> TauriUi<R> {
+    pub fn new(app: AppHandle<R>, keep_on_clipboard: bool) -> Self {
+        Self {
+            app,
+            keep_on_clipboard,
+            clipboard: Mutex::new(None),
+        }
+    }
+}
+
+impl<R: Runtime> Ui for TauriUi<R> {
+    fn bar(&self, state: BarState) {
+        let _ = self.app.emit_to("bar", "bar-state", state);
+        let app = self.app.clone();
+        let _ = self.app.run_on_main_thread(move || {
+            if state == BarState::Hidden {
+                crate::hide_bar(&app);
+            } else {
+                crate::show_bar(&app);
+            }
+        });
+    }
+
+    fn level(&self, level: f32) {
+        let _ = self.app.emit_to("bar", "bar-level", level);
+    }
+
+    fn sound(&self, sound: Sound) {
+        let name = match sound {
+            Sound::Start => "start",
+            Sound::Stop => "stop",
+            Sound::Error => "error",
+        };
+        let _ = self.app.emit_to("bar", "sound", name);
+    }
+
+    fn notify(&self, notice: Notice) {
+        let payload = match &notice {
+            Notice::TranscriptionFailed { record_id, code } => {
+                json!({ "kind": "transcription_failed", "recordId": record_id, "code": code })
+            }
+            Notice::NowhereToPaste { record_id } => json!({ "kind": "nowhere_to_paste", "recordId": record_id }),
+            Notice::PasteFailed { record_id } => json!({ "kind": "paste_failed", "recordId": record_id }),
+            Notice::RecordingLimitNear => json!({ "kind": "recording_limit_near" }),
+            Notice::MicSilent => json!({ "kind": "mic_silent" }),
+            Notice::RetrySucceeded { record_id } => json!({ "kind": "retry_succeeded", "recordId": record_id }),
+        };
+        let _ = self.app.emit_to("main", "notice", payload);
+    }
+
+    fn paste(&self, text: &str) -> PasteOutcome {
+        let opts = PasteOptions {
+            keep_on_clipboard: self.keep_on_clipboard,
+            ..PasteOptions::new(combo_for(Os::current(), FieldKind::Generic))
+        };
+        let run = || -> Result<(), vocalis_inject::InjectError> {
+            let mut guard = self.clipboard.lock().expect("clipboard lock");
+            if guard.is_none() {
+                *guard = Some(OsClipboard::new()?);
+            }
+            let clip = guard.as_mut().expect("clipboard initialized");
+            let mut keys = OsKeystrokes::new()?;
+            vocalis_inject::paste(text, clip, &mut keys, opts, &mut std::thread::sleep).map(|_| ())
+        };
+        // The paste waits ~250 ms for the target app; don't stall the async workers.
+        match tokio::task::block_in_place(run) {
+            Ok(()) => PasteOutcome::Pasted,
+            Err(e) => {
+                tracing::warn!(target: "paste", error = %e, "paste failed");
+                PasteOutcome::Failed
+            }
+        }
+    }
+
+    fn command(&self, request: Option<&str>, record_id: &str) {
+        let _ = self
+            .app
+            .emit_to("main", "command", json!({ "request": request, "recordId": record_id }));
+        if let Some(w) = self.app.get_webview_window("main") {
+            let _ = w.show();
+        }
+    }
+}
+
+pub struct StoreHistory {
+    pub store: Mutex<Store>,
+}
+
+impl History for StoreHistory {
+    fn insert(&self, e: NewEntry) {
+        let failed = e.error_code.is_some();
+        let record = NewRecord {
+            kind: Some(if e.is_command {
+                RecordType::Command
+            } else {
+                RecordType::Dictation
+            }),
+            status: Some(if failed { RecordStatus::Failed } else { RecordStatus::Ok }),
+            text: e.text,
+            app_name: e.app_name,
+            app_id: e.app_id,
+            url: e.url,
+            field_kind: None,
+            words: e.words,
+            duration_ms: e.duration_ms,
+            wpm: e.wpm,
+            audio_path: e.audio_path,
+            error_code: e.error_code,
+            created_at: e.created_at,
+        };
+        let store = self.store.lock().expect("store lock");
+        match store.insert_with_id(&e.id, record) {
+            Ok(_) => {
+                if let Ok(expired) = store.enforce_audio_retention() {
+                    for p in expired {
+                        let _ = std::fs::remove_file(p);
+                    }
+                }
+            }
+            Err(err) => tracing::error!(target: "history", error = %err, "could not save record"),
+        }
+    }
+
+    fn complete(&self, id: &str, text: &str, words: u32, wpm: u32) {
+        if let Err(err) = self.store.lock().expect("store lock").complete(id, text, words, wpm) {
+            tracing::error!(target: "history", error = %err, "could not update record");
+        }
+    }
+
+    fn fail(&self, id: &str, code: &str) {
+        if let Err(err) = self.store.lock().expect("store lock").fail(id, code) {
+            tracing::error!(target: "history", error = %err, "could not update record");
+        }
+    }
+}

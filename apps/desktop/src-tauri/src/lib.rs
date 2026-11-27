@@ -1,5 +1,10 @@
-//! Vocalis desktop shell (P0): main window, dictation bar window, tray and deep links.
-//! Hotkeys, audio and paste arrive in P1 (`crates/input`, `audio`, `inject`).
+//! Vocalis desktop app: main window, dictation bar, tray, deep links, and the
+//! dictation engine (hotkeys, microphone, gateway, paste, history).
+
+mod adapters;
+mod engine;
+mod gateway_ws;
+mod secrets;
 
 use serde::Serialize;
 use tauri::menu::{Menu, MenuItem};
@@ -26,14 +31,14 @@ fn app_info() -> AppInfo {
     }
 }
 
-/// Show or hide the dictation bar, anchored bottom-centre on the current monitor.
-/// It is shown without taking focus so the user's app keeps the cursor.
-#[tauri::command]
-fn toggle_bar<R: Runtime>(app: AppHandle<R>) -> Result<bool, String> {
-    let bar = app.get_webview_window("bar").ok_or("bar window missing")?;
-    if bar.is_visible().map_err(|e| e.to_string())? {
-        bar.hide().map_err(|e| e.to_string())?;
-        return Ok(false);
+/// Show the bar bottom-centre on the current monitor without taking focus, so
+/// the user's app keeps the cursor. Must run on the main thread.
+pub(crate) fn show_bar<R: Runtime>(app: &AppHandle<R>) {
+    let Some(bar) = app.get_webview_window("bar") else {
+        return;
+    };
+    if bar.is_visible().unwrap_or(false) {
+        return;
     }
     // Position from the configured logical size: on Linux the window reports a
     // zero size until GTK realizes it, which happens asynchronously after `show`.
@@ -46,10 +51,79 @@ fn toggle_bar<R: Runtime>(app: AppHandle<R>) -> Result<bool, String> {
         let y = origin.y + area.height as i32 - h - (area.height as i32 / 12);
         let _ = bar.set_position(PhysicalPosition::new(x, y));
     }
-    bar.show().map_err(|e| e.to_string())?;
+    let _ = bar.show();
     // Must follow `show`: making an unrealized GTK window click-through panics in tao.
     let _ = bar.set_ignore_cursor_events(true);
-    Ok(true)
+}
+
+pub(crate) fn hide_bar<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(bar) = app.get_webview_window("bar") {
+        let _ = bar.hide();
+    }
+}
+
+/// Settings "preview the bar" button.
+#[tauri::command]
+fn toggle_bar<R: Runtime>(app: AppHandle<R>) -> Result<bool, String> {
+    let bar = app.get_webview_window("bar").ok_or("bar window missing")?;
+    if bar.is_visible().map_err(|e| e.to_string())? {
+        hide_bar(&app);
+        Ok(false)
+    } else {
+        show_bar(&app);
+        Ok(true)
+    }
+}
+
+/// Default hotkeys per OS (docs/MASTER_PROMPT.md Appendix A).
+fn default_hotkeys() -> (&'static str, &'static str) {
+    if cfg!(target_os = "macos") {
+        ("fn", "fn+space")
+    } else if cfg!(target_os = "windows") {
+        ("ctrl+win", "ctrl+win+shift")
+    } else {
+        ("left_ctrl+space", "left_ctrl+shift+space")
+    }
+}
+
+fn env(key: &str) -> Option<String> {
+    std::env::var(key).ok().filter(|v| !v.trim().is_empty())
+}
+
+/// Dictation languages: `VOCALIS_LANGUAGES` (comma-separated), else the system
+/// locale's language, else auto-detect.
+fn languages() -> Vec<String> {
+    if let Some(v) = env("VOCALIS_LANGUAGES") {
+        return v
+            .split(',')
+            .map(|s| s.trim().to_lowercase())
+            .filter(|s| !s.is_empty())
+            .collect();
+    }
+    env("LANG")
+        .and_then(|l| l.split(['_', '.', '-']).next().map(str::to_lowercase))
+        .filter(|l| l.len() == 2 && l != "c")
+        .into_iter()
+        .collect()
+}
+
+fn start_engine<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+    let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let (primary, hands_free) = default_hotkeys();
+    // Until sign-in lands (P1 webapp deep link), a development token can be supplied.
+    let dev_token = env("VOCALIS_DEV_TOKEN");
+    let cfg = engine::EngineConfig {
+        data_dir,
+        gateway_url: env("VOCALIS_GATEWAY_URL").unwrap_or_else(|| "https://api.vocalis.app".into()),
+        token: std::sync::Arc::new(move || dev_token.clone()),
+        primary: vocalis_input::Chord::parse(primary).map_err(|e| e.to_string())?,
+        hands_free: vocalis_input::Chord::parse(hands_free).map_err(|e| e.to_string())?,
+        gesture: vocalis_core::gesture::Config::default(),
+        languages: languages(),
+        keep_on_clipboard: false,
+        dev_wav: env("VOCALIS_DEV_WAV").map(std::path::PathBuf::from),
+    };
+    engine::start(app.clone(), cfg)
 }
 
 fn show_main<R: Runtime>(app: &AppHandle<R>) {
@@ -71,6 +145,12 @@ fn forward_deep_links<R: Runtime>(app: &AppHandle<R>, urls: Vec<String>) {
 }
 
 pub fn run() {
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .try_init();
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             forward_deep_links(app, argv);
@@ -106,6 +186,9 @@ pub fn run() {
                 tray = tray.icon(icon.clone());
             }
             tray.build(app)?;
+            if let Err(e) = start_engine(app.handle()) {
+                tracing::error!(target: "engine", error = %e, "dictation engine did not start");
+            }
             Ok(())
         })
         .run(tauri::generate_context!())

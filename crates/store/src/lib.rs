@@ -269,7 +269,12 @@ impl Store {
     }
 
     pub fn insert(&self, r: NewRecord) -> Result<Record, StoreError> {
-        let id = uuid::Uuid::new_v4().to_string();
+        self.insert_with_id(&uuid::Uuid::new_v4().to_string(), r)
+    }
+
+    /// Insert with a caller-chosen id (the dictation session's id, which also
+    /// names its audio file and appears in notifications).
+    pub fn insert_with_id(&self, id: &str, r: NewRecord) -> Result<Record, StoreError> {
         self.conn.execute(
             "INSERT INTO records (id, kind, status, text, app_name, app_id, url, field_kind, words, duration_ms, wpm, audio_path, error_code, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
@@ -290,7 +295,7 @@ impl Store {
                 r.created_at,
             ],
         )?;
-        self.get(&id)
+        self.get(id)
     }
 
     pub fn get(&self, id: &str) -> Result<Record, StoreError> {
