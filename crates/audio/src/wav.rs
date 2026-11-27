@@ -57,7 +57,7 @@ pub fn decode(bytes: &[u8]) -> Result<(Vec<i16>, u32), WavError> {
             }
             b"data" => {
                 let rate = rate.ok_or(WavError::Unsupported)?;
-                let samples = body.chunks_exact(2).map(|c| i16::from_le_bytes([c[0], c[1]])).collect();
+                let samples = body.as_chunks::<2>().0.iter().map(|c| i16::from_le_bytes(*c)).collect();
                 return Ok((samples, rate));
             }
             _ => {}

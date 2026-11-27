@@ -189,7 +189,7 @@ async fn session(mut socket: WebSocket, state: AppState, _caller: Caller) {
                     .await;
                     return;
                 }
-                pcm.extend(b.chunks_exact(2).map(|c| i16::from_le_bytes([c[0], c[1]])));
+                pcm.extend(b.as_chunks::<2>().0.iter().map(|c| i16::from_le_bytes(*c)));
             }
             Some(Message::Text(t)) => match serde_json::from_str::<ClientMsg>(&t) {
                 Ok(ClientMsg::Stop) => break,

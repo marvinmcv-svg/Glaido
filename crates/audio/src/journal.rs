@@ -219,7 +219,7 @@ pub fn read_bytes(bytes: &[u8], key: &Key) -> Result<Recovered, JournalError> {
             garbage = true;
             break;
         };
-        samples.extend(plain.chunks_exact(2).map(|c| i16::from_le_bytes([c[0], c[1]])));
+        samples.extend(plain.as_chunks::<2>().0.iter().map(|c| i16::from_le_bytes(*c)));
         pos += 4 + len;
         counter += 1;
         if last {
