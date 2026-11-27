@@ -65,9 +65,32 @@ cd apps/desktop && pnpm tauri dev
 
 **Bugs found by tests and fixed:** VAD ignored speech starting on the first frame and treated steady noise as speech; history repair could not open damaged files (and now quarantines instead of deleting); clients omitting optional `app` fields were rejected; X11 clipboard restore lost the contents.
 
-**Not done yet in P1**
+**Not done yet in P1** (see the next entry for what has since shipped)
 - Setup wizard (permissions → mic test → languages → first dictation) and sign-in via the webapp deep link (a dev token is used meanwhile).
 - History UI (list by day, copy, playback, Retry button), crash-recovery scan for orphaned journals, notifications UI.
 - Frontmost-app context (`crates/context`), paste into the starting app, macOS "nowhere to paste" detection.
 - macOS and Windows: compile on CI only; Fn/Globe detection, Accessibility prompts and paste need a real Mac/PC.
 - Latency harness for the §5.9 budgets (needs real provider keys).
+
+## 2026-11-27 — P1 second slice: History, crash recovery, desktop sign-in
+
+**Shipped**
+- **History (FE, DN):** Activity panel on Home: records grouped by day (Today / Yesterday / date), search (≥ 2 characters, failed records excluded), Copy, expandable record with the full text, an audio player and **Download audio** (decrypted in memory, never written to disk in the clear), **Retry** on failed records, per-record **Delete** (★ better than the reference), "Show older" paging, live refresh on `history-changed`.
+- **Notices (FE):** in-app toasts for every engine notice with original copy and Retry / Copy actions.
+- **Crash recovery (DN):** at startup, any `.wav.enc` without a record becomes a failed `INTERRUPTED` record with its audio kept for Retry; empty journals are removed; unreadable ones are left untouched.
+- **Desktop sign-in (BE, FE, DN; ADR-0012):** PKCE one-time-code handoff through the web app (`/auth/desktop`, `POST /api/desktop/exchange`, `desktop_handoffs` table), refresh token in the OS keychain, automatic refresh, sign out, Settings → Account row. `VOCALIS_DEV_TOKEN` still overrides.
+
+**Verified (Ubuntu 24.04 container)**
+- 157 Rust tests (new: recovery scan, store delete, PKCE/callback parsing, sign-in → restart → refresh → revoked-session sign-out against a mock HTTP server), clippy `-D warnings`, rustfmt; desktop and webapp Vitest (new history and handoff tests), typecheck, builds; Prettier; clean-room scan.
+- Supabase RLS harness on Postgres 16 passes; the new handoff checks fail when a leaky grant + policy is added.
+- Desktop E2E passes: dictation pasted and clipboard restored, then **`kill -9` mid-recording → restart → the audio is recovered as a failed record** (P1 exit: no lost audio when the app is killed).
+- History UI rendered in Chromium against mocked engine commands (grouping, failed-record copy, Retry, search).
+
+**Not verified**
+- The web half of sign-in against real Supabase: no Docker here for `supabase start`, and the hosted project needs the migration and `SUPABASE_SERVICE_ROLE_KEY` first (runbook step 4). The exchange logic is unit tested with fakes only.
+- Deep-link delivery into a running app on Linux needs D-Bus and `xdg-mime`, which this container lacks.
+
+**Still open in P1**
+- Setup wizard (permissions → mic test with device picker and meter → languages → first dictation); languages and hotkeys are not user-settable yet.
+- Frontmost-app context (`crates/context`), paste into the starting app, macOS "nowhere to paste" detection.
+- Induced-failure checks for network drop and screen lock (kill is covered); latency harness for §5.9 (needs provider keys); 10-app manual QA and macOS/Windows hardware checks.
