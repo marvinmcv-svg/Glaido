@@ -153,10 +153,30 @@ const MIGRATIONS: &[&str] = &[
       INSERT INTO records_fts(rowid, text) VALUES (new.rowid, new.text);
     END;
     ",
+    // v2: personalization (spec 4.5). Rows are tombstoned (`deleted_at`) rather
+    // than deleted so account sync can pass deletions on to other devices.
+    "
+    CREATE TABLE dictionary (
+      id TEXT PRIMARY KEY,
+      word TEXT NOT NULL,
+      misspelling TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER
+    );
+    CREATE TABLE snippets (
+      id TEXT PRIMARY KEY,
+      trigger TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER
+    );
+    ",
 ];
 
 pub struct Store {
-    conn: Connection,
+    pub(crate) conn: Connection,
     path: PathBuf,
     key: Key,
 }
@@ -482,6 +502,9 @@ pub fn local_date(ms: i64, utc_offset_minutes: i32) -> String {
     let m = if mp < 10 { mp + 3 } else { mp - 9 };
     format!("{:04}-{:02}-{:02}", if m <= 2 { y + 1 } else { y }, m, d)
 }
+
+mod personal;
+pub use personal::{DictionaryEntry, PersonalError, SnippetEntry};
 
 #[cfg(test)]
 mod tests;
