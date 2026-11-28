@@ -212,6 +212,7 @@ pub fn run() {
             setup_cmds::settings_set_microphone,
             setup_cmds::settings_set_hotkeys,
             setup_cmds::settings_set_setup_completed,
+            setup_cmds::settings_set_paste_into_starting_app,
             setup_cmds::hotkey_record,
             setup_cmds::mic_list,
             setup_cmds::mic_test_start,

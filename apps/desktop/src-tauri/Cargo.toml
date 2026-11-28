@@ -33,6 +33,7 @@ tokio-tungstenite = { version = "0.27", features = ["rustls-tls-native-roots"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
 vocalis-audio = { path = "../../../crates/audio", features = ["capture"] }
+vocalis-context = { path = "../../../crates/context", features = ["os"] }
 vocalis-core.workspace = true
 vocalis-inject = { path = "../../../crates/inject", features = ["os"] }
 vocalis-input = { path = "../../../crates/input", features = ["listen"] }

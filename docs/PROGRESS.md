@@ -111,3 +111,20 @@ cd apps/desktop && pnpm tauri dev
 **Not verified**
 - Live hotkey recording and live hotkey changes in the running app (unit-tested parts only; driving Tauri commands from the E2E isn't wired up).
 - Microphone test and device list: the container has no audio devices. Accessibility check and privacy-pane links: macOS only, built by CI but not run.
+
+## 2026-11-28 — P1 fourth slice: frontmost-app context and paste into the starting app
+
+**Shipped**
+- **`crates/context` (DN):** the app and window in front when a dictation starts (macOS NSWorkspace; Windows foreground window + process image; X11 EWMH active window, falling back to the input focus). A token-based **field-kind** heuristic (terminal, code, email, chat, document, generic) over bundle id / exe / WM_CLASS and name, plus URL hosts for browsers (URLs themselves arrive in P3).
+- **Paste into the starting app (spec 4.1):** if the user switched windows while speaking, the starting app is brought back (NSRunningApplication; Windows `SetForegroundWindow` with `AttachThreadInput`; X11 `_NET_ACTIVE_WINDOW` plus `SetInputFocus`), then the text is pasted. On by default; Settings → "Paste into the starting app".
+- **Nowhere to paste (macOS):** via the Accessibility API, no paste and a notification with Copy when nothing is focused or the focus is a control that never takes text (buttons, lists, windows…). Unknown roles still paste, so a wrong guess can't swallow a dictation.
+- **Terminal paste on Linux:** dictations started in a terminal paste with Ctrl+Shift+V.
+- History rows now show the app; the gateway receives the app name, id and field kind (never window handles).
+
+**Verified (Ubuntu 24.04 container)**
+- 174 Rust tests (new: paste plan, field kinds for the ten QA apps and more, URL hosts, no handles in serialized context); clippy `-D warnings` for Linux, and for the context crate cross-checked for `aarch64-apple-darwin` and `x86_64-pc-windows-msvc` (type-checked only; CI links and bundles on real macOS and Windows).
+- Desktop E2E 3/3: start dictating in one window, switch to another mid-speech, release: the text lands in the starting window and the other stays empty. With the setting off, the same run fails as it should.
+
+**Not verified**
+- macOS and Windows backends at runtime (refocus, Accessibility "nowhere to paste"); they need real machines.
+- Linux terminal paste in a real terminal; Wayland sessions get no context (pastes go where the cursor is).

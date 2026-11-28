@@ -3343,6 +3343,7 @@ checksum = "d49e936b501e5c5bf01fda3a9452ff86dc3ea98ad5f283e1455153142d97518c"
 dependencies = [
  "bitflags 2.13.2",
  "block2",
+ "libc",
  "objc2",
  "objc2-core-foundation",
  "objc2-core-graphics",
@@ -6243,6 +6244,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "vocalis-context"
+version = "0.1.0"
+dependencies = [
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
+ "serde",
+ "serde_json",
+ "tracing",
+ "vocalis-core",
+ "windows-sys 0.61.2",
+ "x11rb",
+]
+
+[[package]]
 name = "vocalis-core"
 version = "0.1.0"
 dependencies = [
@@ -6277,6 +6293,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "vocalis-audio",
+ "vocalis-context",
  "vocalis-core",
  "vocalis-inject",
  "vocalis-input",

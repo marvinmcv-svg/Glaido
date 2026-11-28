@@ -112,7 +112,13 @@ pub fn start<R: Runtime>(app: AppHandle<R>, cfg: EngineConfig) -> Result<EngineH
         tracing::warn!(target: "engine", ?report, "history database was repaired");
     }
 
-    let ui = Arc::new(crate::adapters::TauriUi::new(app.clone(), cfg.keep_on_clipboard));
+    let context = Arc::new(crate::adapters::AppTracker::new(vocalis_context::os::desktop()));
+    let ui = Arc::new(crate::adapters::TauriUi::new(
+        app.clone(),
+        cfg.keep_on_clipboard,
+        context.clone(),
+        cfg.settings.clone(),
+    ));
     let notify_app = app.clone();
     let history = Arc::new(StoreHistory::new(store, move || {
         let _ = notify_app.emit_to("main", "history-changed", ());
@@ -174,6 +180,7 @@ pub fn start<R: Runtime>(app: AppHandle<R>, cfg: EngineConfig) -> Result<EngineH
         tracker,
         Recognizer::new(cfg.gesture),
         cfg.settings,
+        context,
         epoch,
         cfg.dev_wav,
     ));
@@ -189,6 +196,7 @@ async fn run(
     mut tracker: ChordTracker,
     mut recognizer: Recognizer,
     settings: SharedSettings,
+    context: Arc<crate::adapters::AppTracker>,
     epoch: Instant,
     dev_wav: Option<PathBuf>,
 ) {
@@ -274,7 +282,13 @@ async fn run(
         for action in actions {
             match action {
                 Action::Start(_) => {
-                    controller.start(start_settings(), now_ms());
+                    // Which app the words are for: history, paste target, field kind.
+                    let front = context.capture();
+                    let start = StartSettings {
+                        app: vocalis_context::app_context(front.as_ref()),
+                        ..start_settings()
+                    };
+                    controller.start(start, now_ms());
                     capture = Some(start_capture(tx.clone(), dev_wav.clone(), microphone()));
                 }
                 Action::Promote(_) => {}

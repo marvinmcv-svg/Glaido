@@ -1,19 +1,46 @@
 //! Desktop implementations of the session ports: the UI (bar, sounds, notices,
 //! paste) and History (the encrypted store).
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use serde_json::json;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
+use vocalis_context::{plan_paste, Desktop, FocusedField, Frontmost, PastePlan};
 use vocalis_core::formatting::FieldKind;
 use vocalis_inject::os::{OsClipboard, OsKeystrokes};
 use vocalis_inject::{combo_for, Os, PasteOptions};
 use vocalis_session::{BarState, History, NewEntry, Notice, PasteOutcome, Sound, Ui};
 use vocalis_store::{NewRecord, RecordStatus, RecordType, Store};
 
+use crate::engine::SharedSettings;
+
+/// The desktop and the app that was in front when the current dictation began.
+pub struct AppTracker {
+    pub desktop: Box<dyn Desktop>,
+    pub start: Mutex<Option<Frontmost>>,
+}
+
+impl AppTracker {
+    pub fn new(desktop: Box<dyn Desktop>) -> Self {
+        Self {
+            desktop,
+            start: Mutex::new(None),
+        }
+    }
+
+    /// Remember the frontmost app at the start of a dictation.
+    pub fn capture(&self) -> Option<Frontmost> {
+        let f = self.desktop.frontmost();
+        *self.start.lock().expect("context lock") = f.clone();
+        f
+    }
+}
+
 pub struct TauriUi<R: Runtime> {
     pub app: AppHandle<R>,
     pub keep_on_clipboard: bool,
+    pub context: Arc<AppTracker>,
+    pub settings: SharedSettings,
     /// One clipboard handle for the app's lifetime. On X11 the clipboard is
     /// owned by a process: dropping the handle after restoring the user's
     /// clipboard would make the restored contents vanish.
@@ -21,10 +48,12 @@ pub struct TauriUi<R: Runtime> {
 }
 
 impl<R: Runtime> TauriUi<R> {
-    pub fn new(app: AppHandle<R>, keep_on_clipboard: bool) -> Self {
+    pub fn new(app: AppHandle<R>, keep_on_clipboard: bool, context: Arc<AppTracker>, settings: SharedSettings) -> Self {
         Self {
             app,
             keep_on_clipboard,
+            context,
+            settings,
             clipboard: Mutex::new(None),
         }
     }
@@ -84,9 +113,24 @@ impl<R: Runtime> Ui for TauriUi<R> {
     }
 
     fn paste(&self, text: &str) -> PasteOutcome {
+        let start = self.context.start.lock().expect("context lock").clone();
+        let refocus = self.settings.read().expect("settings lock").paste_into_starting_app;
+        let desktop = &self.context.desktop;
+        if let PastePlan::Refocus(target) = plan_paste(start.as_ref(), desktop.frontmost().as_ref(), refocus) {
+            if desktop.activate(&target) {
+                // Give the window manager a moment to move focus.
+                tokio::task::block_in_place(|| std::thread::sleep(std::time::Duration::from_millis(150)));
+            } else {
+                tracing::info!(target: "paste", "could not return to the starting app; pasting here");
+            }
+        }
+        if desktop.focused_field() == FocusedField::NotText {
+            return PasteOutcome::NowhereToPaste;
+        }
+        let field = start.as_ref().map(Frontmost::field_kind).unwrap_or(FieldKind::Generic);
         let opts = PasteOptions {
             keep_on_clipboard: self.keep_on_clipboard,
-            ..PasteOptions::new(combo_for(Os::current(), FieldKind::Generic))
+            ..PasteOptions::new(combo_for(Os::current(), field))
         };
         let run = || -> Result<(), vocalis_inject::InjectError> {
             let mut guard = self.clipboard.lock().expect("clipboard lock");

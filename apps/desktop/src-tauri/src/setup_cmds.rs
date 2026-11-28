@@ -50,6 +50,7 @@ pub struct SettingsView {
     microphone: Option<String>,
     hotkeys: Hotkeys,
     setup_completed: bool,
+    paste_into_starting_app: bool,
     platform: &'static str,
 }
 
@@ -60,6 +61,7 @@ impl From<&Settings> for SettingsView {
             microphone: s.microphone.clone(),
             hotkeys: s.hotkeys(),
             setup_completed: s.setup_completed,
+            paste_into_starting_app: s.paste_into_starting_app,
             platform: platform(),
         }
     }
@@ -106,6 +108,17 @@ pub fn settings_set_hotkeys<R: Runtime>(
 pub fn settings_set_setup_completed(settings: State<'_, AppSettings>, completed: bool) -> Result<SettingsView, String> {
     settings.update(|s| {
         s.setup_completed = completed;
+        Ok(())
+    })
+}
+
+#[tauri::command]
+pub fn settings_set_paste_into_starting_app(
+    settings: State<'_, AppSettings>,
+    enabled: bool,
+) -> Result<SettingsView, String> {
+    settings.update(|s| {
+        s.paste_into_starting_app = enabled;
         Ok(())
     })
 }

@@ -58,6 +58,9 @@ pub struct Settings {
     pub hotkeys: std::collections::BTreeMap<String, Hotkeys>,
     /// The first-run wizard was finished (or skipped).
     pub setup_completed: bool,
+    /// `dictation.paste_into_starting_app`: if the user switched apps while
+    /// speaking, bring the starting app back and paste there.
+    pub paste_into_starting_app: bool,
 }
 
 impl Default for Settings {
@@ -67,6 +70,7 @@ impl Default for Settings {
             microphone: None,
             hotkeys: Default::default(),
             setup_completed: false,
+            paste_into_starting_app: true,
         }
     }
 }

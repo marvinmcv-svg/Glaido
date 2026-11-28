@@ -105,6 +105,21 @@ function App() {
               </Button>
             </div>
             <div className="row">
+              <div>
+                <div>Paste into the starting app</div>
+                <div className="muted">
+                  Switched windows while speaking? The text still goes where you started.
+                </div>
+              </div>
+              <Switch
+                checked={settings?.pasteIntoStartingApp ?? true}
+                onChange={(enabled) =>
+                  void save("settings_set_paste_into_starting_app", { enabled })
+                }
+                label="Paste into the starting app"
+              />
+            </div>
+            <div className="row">
               <div>Interaction sounds</div>
               <Switch checked={sounds} onChange={setSounds} label="Interaction sounds" />
             </div>

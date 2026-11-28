@@ -56,6 +56,8 @@ launch_desktop() {
 launch_desktop "$WORK/desktop.log"
 sleep 6
 
+"$PY" e2e/desktop/target_app.py "$WORK/other.txt" "E2E other" 200 nofocus & pids+=($!)
+sleep 1
 "$PY" e2e/desktop/target_app.py "$WORK/pasted.txt" & pids+=($!)
 sleep 2
 xdotool search --name "E2E target" windowactivate --sync 2>/dev/null || true
@@ -73,6 +75,19 @@ xdotool keyup F8
 sleep 4
 
 pasted="$(cat "$WORK/pasted.txt" 2>/dev/null || true)"
+
+# Paste into the starting app: start in the target, switch to the other
+# window while speaking; the text must still land in the target.
+xdotool search --name "E2E target" windowfocus --sync 2>/dev/null || true
+sleep 0.5
+xdotool keydown F8
+sleep 1
+xdotool search --name "E2E other" windowfocus --sync 2>/dev/null || true
+sleep 1.5
+xdotool keyup F8
+sleep 4
+refocused="$(cat "$WORK/pasted.txt" 2>/dev/null || true)"
+other="$(cat "$WORK/other.txt" 2>/dev/null || true)"
 clip="$(xclip -selection clipboard -o 2>/dev/null || true)"
 recordings="$(find "$WORK/data" -name '*.wav.enc' | wc -l)"
 
@@ -89,6 +104,8 @@ recovered="$(sed 's/\x1b\[[0-9;]*m//g' "$WORK/desktop2.log" | grep -c 'recovered
 echo "pasted:     '$pasted'"
 echo "clipboard:  '$clip'"
 echo "recordings: $recordings"
+echo "refocused:  '$refocused'"
+echo "other:      '$other'"
 echo "recovered:  $recovered"
 echo "dictations: $(grep -c '"dictation processed"' "$WORK/gateway.log" || true)"
 echo "stt calls:  $(wc -l < "$WORK/stt.log" 2>/dev/null || echo 0)"
@@ -97,7 +114,9 @@ status=0
 [[ "$pasted" == "Hello from the end to end test" ]] || { echo "FAIL: unexpected pasted text"; status=1; }
 [[ "$clip" == "ORIGINAL CLIPBOARD" ]] || { echo "FAIL: clipboard not restored"; status=1; }
 [[ "$recordings" -ge 1 ]] || { echo "FAIL: no encrypted recording kept"; status=1; }
-[[ "$(grep -c '"dictation processed"' "$WORK/gateway.log" || true)" -eq 1 ]] || { echo "FAIL: expected exactly one dictation (default chord must be inactive)"; status=1; }
+[[ "$(grep -c '"dictation processed"' "$WORK/gateway.log" || true)" -eq 2 ]] || { echo "FAIL: expected exactly two dictations (default chord must be inactive)"; status=1; }
+[[ "$refocused" == "Hello from the end to end testHello from the end to end test" ]] || { echo "FAIL: second dictation did not go back to the starting app"; status=1; }
+[[ -z "$other" ]] || { echo "FAIL: text was pasted into the window the user switched to"; status=1; }
 [[ "$recovered" -eq 1 ]] || { echo "FAIL: audio from the killed recording was not recovered"; status=1; }
 if grep -q "hello from the end to end test" "$WORK/gateway.log"; then echo "FAIL: transcript in gateway logs"; status=1; fi
 if [[ $status -ne 0 ]]; then

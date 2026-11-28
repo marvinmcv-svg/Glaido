@@ -1,0 +1,31 @@
+[package]
+name = "vocalis-context"
+description = "Vocalis app context: frontmost app, field kind, refocusing the starting app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+# Real OS backends (X11, macOS, Windows). Without it only the pure logic builds.
+os = ["dep:x11rb", "dep:objc2", "dep:objc2-app-kit", "dep:objc2-foundation", "dep:windows-sys"]
+
+[dependencies]
+serde.workspace = true
+tracing.workspace = true
+vocalis-core.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+x11rb = { version = "0.13", optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = { version = "0.6", optional = true }
+objc2-app-kit = { version = "0.3", optional = true, default-features = false, features = ["std", "libc", "NSRunningApplication", "NSWorkspace"] }
+objc2-foundation = { version = "0.3", optional = true, default-features = false, features = ["std", "NSString"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", optional = true, features = ["Win32_Foundation", "Win32_System_Threading", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse"] }
+
+[dev-dependencies]
+serde_json.workspace = true

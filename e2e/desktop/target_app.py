@@ -2,9 +2,11 @@
 import sys, tkinter as tk
 
 out = sys.argv[1]
+title = sys.argv[2] if len(sys.argv) > 2 else "E2E target"
+y = int(sys.argv[3]) if len(sys.argv) > 3 else 40
 root = tk.Tk()
-root.title("E2E target")
-root.geometry("600x80+40+40")
+root.title(title)
+root.geometry(f"600x80+40+{y}")
 entry = tk.Entry(root, font=("DejaVu Sans", 14))
 entry.pack(fill="x", padx=10, pady=20)
 
@@ -17,6 +19,9 @@ def focus():
     root.focus_force()
     entry.focus_set()
 
-root.after(300, focus)
+if len(sys.argv) > 4 and sys.argv[4] == "nofocus":
+    entry.focus_set()  # keys go to the entry whenever this window gets focus
+else:
+    root.after(300, focus)
 tick()
 root.mainloop()

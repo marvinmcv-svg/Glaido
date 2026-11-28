@@ -8,6 +8,7 @@ export type SettingsView = {
   microphone: string | null;
   hotkeys: Hotkeys;
   setupCompleted: boolean;
+  pasteIntoStartingApp: boolean;
   platform: Platform;
 };
 
