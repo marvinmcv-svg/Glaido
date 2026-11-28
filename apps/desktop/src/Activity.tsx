@@ -26,7 +26,9 @@ export function Activity() {
   const [error, setError] = useState<string | null>(null);
   const [more, setMore] = useState(false);
   const queryRef = useRef(query);
-  queryRef.current = query;
+  useEffect(() => {
+    queryRef.current = query;
+  }, [query]);
 
   const load = useCallback(async () => {
     if (!isTauri()) return;
@@ -228,6 +230,7 @@ function RecordDetail({ record: r, onDelete }: { record: HistoryRecord; onDelete
       {r.text ? <p className="record-full">{r.text}</p> : null}
       {src ? (
         <div className="row">
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption -- the transcript shown above is this recording's text; there is no timed caption track to offer */}
           <audio controls src={src} aria-label="Recording" />
           <a className="muted" href={src} download={`vocalis-${r.id}.wav`}>
             Download audio

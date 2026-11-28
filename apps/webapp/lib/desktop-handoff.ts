@@ -65,9 +65,9 @@ export type Session = {
 /** What the exchange needs from Supabase; injected so it can be tested. */
 export type ExchangeDeps = {
   /** Delete the unexpired handoff with this code hash; return it if there was one. */
-  consume(codeHash: string): Promise<{ userId: string; challenge: string } | null>;
+  consume: (codeHash: string) => Promise<{ userId: string; challenge: string } | null>;
   /** Mint a brand-new session for the user (independent of their browser session). */
-  mintSession(userId: string): Promise<Session | null>;
+  mintSession: (userId: string) => Promise<Session | null>;
 };
 
 export type ExchangeResult =

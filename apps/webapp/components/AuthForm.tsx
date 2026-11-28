@@ -86,7 +86,7 @@ export function AuthForm({
   };
 
   const onMagicLink = () =>
-    run(async () => {
+    void run(async () => {
       if (!email)
         return { kind: "error", text: "Enter your email first, then we'll send the link." };
       const { error } = await createClient().auth.signInWithOtp({
@@ -101,7 +101,7 @@ export function AuthForm({
     });
 
   const onOAuth = (provider: Provider) =>
-    run(async () => {
+    void run(async () => {
       const { error } = await createClient().auth.signInWithOAuth({
         provider,
         options: { redirectTo: callbackUrl() },

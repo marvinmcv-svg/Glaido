@@ -19,6 +19,7 @@
   ],
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node scripts/build.mjs --check"
+    "test": "node scripts/build.mjs --check",
+    "lint": "eslint . --max-warnings 0"
   }
 }

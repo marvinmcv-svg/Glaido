@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint . --max-warnings 0",
     "tauri": "tauri",
     "icons": "tauri icon assets/app-icon.png",
     "test": "vitest run"

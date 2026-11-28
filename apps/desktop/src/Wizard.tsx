@@ -148,8 +148,6 @@ function MicStep({ settings, save }: { settings: SettingsView; save: Save }) {
 
   useEffect(() => {
     if (!isTauri()) return;
-    setError(null);
-    setPeak(0);
     const subs = [
       listen<number>("mic-level", (e) => {
         setLevel(e.payload);
@@ -166,6 +164,8 @@ function MicStep({ settings, save }: { settings: SettingsView; save: Save }) {
 
   const choose = (value: string) => {
     const d = value === "" ? null : value;
+    setError(null);
+    setPeak(0);
     setDevice(d);
     void save("settings_set_microphone", { microphone: d });
   };
@@ -286,19 +286,19 @@ function FirstDictationStep({ settings, save }: { settings: SettingsView; save: 
   const [recording, setRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
-  const since = useRef(Date.now());
-
   useEffect(() => {
     if (!isTauri()) return;
-    const off = listen("history-changed", async () => {
+    const since = Date.now();
+    const refresh = async () => {
       const groups = await invoke<DayGroup[]>("history_list", {
         before: null,
         utcOffsetMinutes: utcOffsetMinutes(),
       });
       const latest = groups[0]?.records[0];
-      if (latest && latest.createdAt >= since.current)
+      if (latest && latest.createdAt >= since)
         setResult(latest.status === "ok" ? latest.text : null);
-    });
+    };
+    const off = listen("history-changed", () => void refresh());
     return () => void off.then((f) => f());
   }, []);
 
