@@ -36,7 +36,7 @@ jobs:
       - run: cargo test --workspace
 
   js:
-    name: JS (format, typecheck, test, build, e2e)
+    name: JS (format, lint, typecheck, test, build, e2e)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -48,8 +48,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
       - run: pnpm check:clean-room
-      - name: Typecheck, unit tests, build
-        run: pnpm turbo run typecheck test build
+      - name: Lint, typecheck, unit tests, build
+        run: pnpm turbo run lint typecheck test build
         env:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
