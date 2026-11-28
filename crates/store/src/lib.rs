@@ -527,5 +527,8 @@ pub use personal::{DictionaryEntry, PersonalError, SnippetEntry};
 mod rules;
 pub use rules::{AppRef, FormattingRule, PresetOutcome, RuleDraft, RulesError, UsedApp};
 
+mod stats;
+pub use stats::{DayStats, HomeStats, Insights, InsightsRange, TYPING_WPM};
+
 #[cfg(test)]
 mod tests;

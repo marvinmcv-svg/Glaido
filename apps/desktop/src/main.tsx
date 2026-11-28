@@ -1,24 +1,35 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { Button, Card, Keycap, StatCard, Switch } from "@vocalis/ui";
+import { Button, Card, Keycap, Switch } from "@vocalis/ui";
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import icon from "../assets/app-icon.svg";
 import { AccountRow } from "./Account";
-import { Activity } from "./Activity";
+import { Activity, type ActivityFocus } from "./Activity";
 import { Formatting } from "./Formatting";
 import "./app.css";
+import { ClearHistoryRow } from "./ClearHistory";
 import { Dictionary } from "./Dictionary";
+import { HomeStats } from "./HomeStats";
+import { Insights } from "./Insights";
+import { Palette } from "./Palette";
+import { isPaletteShortcut, isSettingsShortcut, type PaletteAction } from "./palette";
 import { currentPlatform, DEFAULT_HOTKEYS } from "./platform";
 import { chordKeys, useSettings } from "./settings";
 import { Snippets } from "./Snippets";
+import { applyStoredTheme, toggleTheme } from "./theme";
 import { Toasts } from "./Toasts";
 import { Wizard } from "./Wizard";
 
 type AppInfo = { name: string; version: string; coreVersion: string };
-const PAGES = ["Home", "Dictionary", "Snippets", "Formatting", "Settings"] as const;
+const PAGES = ["Home", "Dictionary", "Snippets", "Formatting", "Insights", "Settings"] as const;
+type Page = (typeof PAGES)[number];
+
+applyStoredTheme();
 
 function App() {
-  const [page, setPage] = useState<(typeof PAGES)[number]>("Home");
+  const [page, setPage] = useState<Page>("Home");
+  const [palette, setPalette] = useState(false);
+  const [focus, setFocus] = useState<ActivityFocus | null>(null);
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [sounds, setSounds] = useState(true);
   const { settings, save } = useSettings();
@@ -31,6 +42,37 @@ function App() {
       }
     : DEFAULT_HOTKEYS[platform];
   const showWizard = settings !== null && (wizard || !settings.setupCompleted);
+
+  // Command Palette (⌘K / Ctrl+K) and Settings (⌘, / Ctrl+,).
+  useEffect(() => {
+    const mac = platform === "macos";
+    const onKey = (e: KeyboardEvent) => {
+      if (isPaletteShortcut(e, mac)) {
+        e.preventDefault();
+        setPalette((p) => !p);
+      } else if (isSettingsShortcut(e, mac)) {
+        e.preventDefault();
+        setPage("Settings");
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [platform]);
+
+  const runPaletteAction = (a: PaletteAction) => {
+    if (a.type === "theme") toggleTheme();
+    else if (a.type === "wizard") setWizard(true);
+    else if (a.type === "record") {
+      setPage("Home");
+      setFocus({ id: a.id, query: a.query, nonce: Date.now() });
+    } else if ((PAGES as readonly string[]).includes(a.page)) {
+      setPage(a.page as Page);
+      if (a.anchor)
+        requestAnimationFrame(() =>
+          document.getElementById(a.anchor!)?.scrollIntoView({ block: "center" }),
+        );
+    }
+  };
 
   const [engineError, setEngineError] = useState<string | null>(null);
   useEffect(() => {
@@ -65,15 +107,7 @@ function App() {
         <h1>{page}</h1>
         {page === "Home" ? (
           <>
-            <div className="stats">
-              <StatCard
-                label="Time saved"
-                value="0m"
-                hint="Your first dictation starts the clock"
-              />
-              <StatCard label="Speed" value="— wpm" hint="Measured after a few dictations" />
-              <StatCard label="Streak" value="0 days" hint="Dictate today to start one" />
-            </div>
+            <HomeStats />
             <Card>
               <div className="row">
                 <div>
@@ -106,15 +140,20 @@ function App() {
                 </Button>
               </div>
             </Card>
-            <Activity />
+            <Activity focus={focus} />
           </>
         ) : page === "Dictionary" ? (
           <Dictionary />
         ) : page === "Snippets" ? (
           <Snippets />
+        ) : page === "Insights" ? (
+          <Insights />
         ) : page === "Settings" ? (
           <Card>
-            <AccountRow />
+            <div id="account">
+              <AccountRow />
+            </div>
+            <ClearHistoryRow />
             <div className="row">
               <div>
                 <div>Setup wizard</div>
@@ -159,6 +198,14 @@ function App() {
         )}
       </main>
       <Toasts />
+      {palette ? (
+        <Palette
+          pages={PAGES}
+          mac={platform === "macos"}
+          onAction={runPaletteAction}
+          onClose={() => setPalette(false)}
+        />
+      ) : null}
       {showWizard && settings ? (
         <Wizard settings={settings} save={save} onDone={() => setWizard(false)} />
       ) : null}

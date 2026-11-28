@@ -18,6 +18,8 @@ export type HistoryRecord = {
   audioPath: string | null;
   errorCode: string | null;
   createdAt: number;
+  /** Tools a command ran. Not stored yet; arrives with Commands (P3). */
+  toolCount?: number | null;
 };
 
 export type DayGroup = { date: string; records: HistoryRecord[] };
