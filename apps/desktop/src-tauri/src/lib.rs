@@ -98,6 +98,7 @@ fn start_engine<R: Runtime>(
         gesture: vocalis_core::gesture::Config::default(),
         keep_on_clipboard: false,
         dev_wav: env("VOCALIS_DEV_WAV").map(std::path::PathBuf::from),
+        dev_lock_file: env("VOCALIS_DEV_LOCK_FILE").map(std::path::PathBuf::from),
     };
     let handle = engine::start(app.clone(), cfg)?;
     app.manage(handle);

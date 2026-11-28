@@ -34,6 +34,8 @@ pub use ports::*;
 
 /// Error code for recordings cut short by a lost microphone.
 pub const MIC_DISCONNECTED: &str = "MIC_DISCONNECTED";
+/// Error code for recordings cut short by a screen lock or sleep.
+pub const SCREEN_LOCKED: &str = "SCREEN_LOCKED";
 
 #[derive(Clone)]
 pub struct Config {
@@ -329,6 +331,31 @@ impl Controller {
             drop_recording(a);
             self.ui.notify(Notice::MicDisconnected { record_id: None });
         }
+    }
+
+    /// The screen locked or the computer slept mid-recording (spec 4.1: audio
+    /// is preserved when the screen locks). Nobody is at the screen, so nothing
+    /// is sent or pasted: speech so far becomes a failed `SCREEN_LOCKED`
+    /// record with Retry; a recording with no speech is dropped silently.
+    pub fn interrupted(&mut self) {
+        let Some(mut a) = self.active.take() else { return };
+        finish_journal(&mut a);
+        self.ui.bar(BarState::Hidden);
+        if !a.vad.heard_speech(self.cfg.min_speech_frames) {
+            drop_recording(a);
+            return;
+        }
+        let entry = base_entry(&a);
+        let id = a.id.clone();
+        cancel_link(a.link);
+        self.history.insert(NewEntry {
+            error_code: Some(SCREEN_LOCKED.into()),
+            ..entry
+        });
+        self.ui.notify(Notice::TranscriptionFailed {
+            record_id: id,
+            code: SCREEN_LOCKED.into(),
+        });
     }
 
     /// Accidental tap: drop everything, no record.

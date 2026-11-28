@@ -2,6 +2,9 @@
 //! back to the front.
 
 use windows_sys::Win32::Foundation::{CloseHandle, HWND};
+use windows_sys::Win32::System::StationsAndDesktops::{
+    CloseDesktop, OpenInputDesktop, SwitchDesktop, DESKTOP_SWITCHDESKTOP,
+};
 use windows_sys::Win32::System::Threading::{
     AttachThreadInput, GetCurrentThreadId, OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
     PROCESS_QUERY_LIMITED_INFORMATION,
@@ -31,6 +34,21 @@ fn image_name(pid: u32) -> Option<String> {
 }
 
 impl Desktop for WinDesktop {
+    /// The lock screen runs on the secure Winlogon desktop: while it shows, the
+    /// input desktop can't be opened or switched to from our session.
+    fn screen_locked(&self) -> Option<bool> {
+        // SAFETY: the desktop handle is closed before returning.
+        unsafe {
+            let h = OpenInputDesktop(0, 0, DESKTOP_SWITCHDESKTOP);
+            if h.is_null() {
+                return Some(true);
+            }
+            let ok = SwitchDesktop(h) != 0;
+            CloseDesktop(h);
+            Some(!ok)
+        }
+    }
+
     fn frontmost(&self) -> Option<Frontmost> {
         // SAFETY: plain Win32 queries.
         let (hwnd, pid) = unsafe {

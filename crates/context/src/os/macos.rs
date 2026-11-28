@@ -44,6 +44,10 @@ impl Desktop for MacDesktop {
     fn focused_field(&self) -> FocusedField {
         ax::focused_field()
     }
+
+    fn screen_locked(&self) -> Option<bool> {
+        ax::screen_locked()
+    }
 }
 
 /// Raw Accessibility (ApplicationServices) and Core Foundation calls.
@@ -64,8 +68,16 @@ mod ax {
         fn AXUIElementCopyAttributeValue(element: CFTypeRef, attribute: CFStringRef, value: *mut CFTypeRef) -> AXError;
     }
 
+    #[link(name = "CoreGraphics", kind = "framework")]
+    extern "C" {
+        fn CGSessionCopyCurrentDictionary() -> CFTypeRef;
+    }
+
     #[link(name = "CoreFoundation", kind = "framework")]
     extern "C" {
+        fn CFDictionaryGetValue(dict: CFTypeRef, key: CFTypeRef) -> CFTypeRef;
+        fn CFBooleanGetValue(b: CFTypeRef) -> u8;
+        fn CFBooleanGetTypeID() -> usize;
         fn CFRelease(cf: CFTypeRef);
         fn CFStringCreateWithBytes(
             alloc: CFTypeRef,
@@ -149,6 +161,27 @@ mod ax {
         "AXScrollBar",
         "AXDockItem",
     ];
+
+    /// `CGSSessionScreenIsLocked` in the session dictionary; absent means unlocked.
+    pub fn screen_locked() -> Option<bool> {
+        // SAFETY: an owned dictionary (or null) we release on drop.
+        let dict = Owned(unsafe { CGSessionCopyCurrentDictionary() });
+        if dict.0.is_null() {
+            return None;
+        }
+        let key = cfstr("CGSSessionScreenIsLocked");
+        // SAFETY: borrowed value from a live dictionary; type-checked before use.
+        unsafe {
+            let v = CFDictionaryGetValue(dict.0, key.0);
+            if v.is_null() {
+                return Some(false);
+            }
+            if CFGetTypeID(v) != CFBooleanGetTypeID() {
+                return None;
+            }
+            Some(CFBooleanGetValue(v) != 0)
+        }
+    }
 
     pub fn focused_field() -> FocusedField {
         // SAFETY: argument-free queries.

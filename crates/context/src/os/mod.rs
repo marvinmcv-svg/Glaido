@@ -1,5 +1,7 @@
 //! OS backends: X11 on Linux, AppKit on macOS, Win32 on Windows.
 
+#[cfg(target_os = "linux")]
+mod logind;
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(windows)]
@@ -18,7 +20,7 @@ pub fn desktop() -> Box<dyn Desktop> {
             Some(d) => Box::new(d),
             None => {
                 tracing::info!(target: "context", "no X11 display; app context unavailable");
-                Box::new(crate::NoDesktop)
+                Box::new(LockOnly(logind::Logind::new()))
             }
         }
     }
@@ -33,5 +35,22 @@ pub fn desktop() -> Box<dyn Desktop> {
     #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
     {
         Box::new(crate::NoDesktop)
+    }
+}
+
+/// Wayland without XWayland: no app context, but lock state still comes from logind.
+#[cfg(target_os = "linux")]
+struct LockOnly(logind::Logind);
+
+#[cfg(target_os = "linux")]
+impl Desktop for LockOnly {
+    fn frontmost(&self) -> Option<crate::Frontmost> {
+        None
+    }
+    fn activate(&self, _: &crate::Frontmost) -> bool {
+        false
+    }
+    fn screen_locked(&self) -> Option<bool> {
+        self.0.locked()
     }
 }

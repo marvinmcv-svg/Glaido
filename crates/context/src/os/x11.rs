@@ -26,6 +26,7 @@ struct Conn {
 
 pub struct X11Desktop {
     inner: Mutex<Option<Conn>>,
+    logind: super::logind::Logind,
 }
 
 fn open() -> Option<Conn> {
@@ -43,6 +44,7 @@ impl X11Desktop {
     pub fn connect() -> Option<Self> {
         Some(Self {
             inner: Mutex::new(Some(open()?)),
+            logind: super::logind::Logind::new(),
         })
     }
 
@@ -117,6 +119,10 @@ impl Conn {
 }
 
 impl Desktop for X11Desktop {
+    fn screen_locked(&self) -> Option<bool> {
+        self.logind.locked()
+    }
+
     fn frontmost(&self) -> Option<Frontmost> {
         self.with(|c| {
             let w = c.active_window()?;

@@ -59,6 +59,7 @@ describe("history helpers", () => {
       "NETWORK",
       "QUOTA_EXCEEDED",
       "MIC_DISCONNECTED",
+      "SCREEN_LOCKED",
       null,
       "???",
     ]) {

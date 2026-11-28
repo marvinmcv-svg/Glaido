@@ -151,9 +151,10 @@ Also, in any one app:
 
 The goal: no recording is ever lost when the screen locks mid-dictation.
 
-- [ ] **Hands-free, then lock.** Start a hands-free dictation and speak for about 10 seconds. Lock the screen (macOS Ctrl+Cmd+Q; Windows Win+L). Wait 30 seconds, unlock. Stop the dictation if it's still running. Expected: either the text is pasted or Activity has a failed entry with its audio and **Retry**. Press Retry. Expected: the full sentence comes back.
-- [ ] **Hold, then lock.** Hold the shortcut, speak, and lock the screen while still holding; release after locking. Unlock. Expected: the recording is not stuck (the bar isn't left showing "recording" forever); the audio is in Activity either as text or as a failed entry you can Retry.
+- [ ] **Hands-free, then lock.** Start a hands-free dictation and speak for about 10 seconds. Lock the screen (macOS Ctrl+Cmd+Q; Windows Win+L). Wait 30 seconds, unlock. Stop the dictation if it's still running. Expected: the bar disappears within about a second of locking; nothing is pasted; Activity has a failed entry ("Your screen locked while you were recording…") with its audio and **Retry**. Press Retry. Expected: everything said before the lock comes back as text.
+- [ ] **Hold, then lock.** Hold the shortcut, speak, and lock the screen while still holding; release after locking. Unlock. Expected: the recording stops at the lock (the bar isn't left showing "recording"); after unlocking, the shortcut works normally on the first try; the audio is in Activity as a failed entry you can Retry.
 - [ ] **Lock by timeout.** Set the screen to lock after 1 minute, start hands-free and let it lock by itself. Expected: as above.
+- [ ] **Sleep.** Start hands-free, speak, close the lid (or choose Sleep), wait a minute, wake and unlock. Expected: as above.
 - [ ] After each case, a normal dictation works without restarting the app.
 
 Write down exactly what happened in each case (pasted / failed entry / stuck / missing): this test has not been run on any OS yet.

@@ -69,6 +69,8 @@ export function failureMessage(code: string | null): string {
       return "This week's free words are used up. The recording is saved for later.";
     case "RECORDING_TOO_LONG":
       return "This recording is longer than the server accepts. The audio is saved.";
+    case "SCREEN_LOCKED":
+      return "Your screen locked while you were recording. What you said so far is saved.";
     case "MIC_DISCONNECTED":
       return "The microphone disconnected while you were speaking. What you said so far is saved.";
     case "AUDIO_UNREADABLE":

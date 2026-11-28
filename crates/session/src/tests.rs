@@ -563,3 +563,29 @@ async fn mic_that_never_opened_says_so() {
     assert_eq!(journals(&r.dir), 0);
     assert!(r.ui.events().contains(&"notify mic-unavailable".to_owned()));
 }
+
+#[tokio::test]
+async fn screen_lock_keeps_speech_without_sending_or_pasting() {
+    let mut r = rig(FakeGateway::ok("should not appear"));
+    record(&mut r, speech(800)).await;
+    r.c.interrupted();
+    r.c.settle().await;
+    let rec = r.history.inserted.lock().unwrap()[0].clone();
+    assert_eq!(rec.error_code.as_deref(), Some(SCREEN_LOCKED));
+    assert!(rec.audio_path.as_deref().is_some_and(|p| Path::new(p).exists()));
+    let ev = r.ui.events();
+    assert!(!ev.iter().any(|e| e.starts_with("paste")));
+    assert!(ev.contains(&format!("notify failed {SCREEN_LOCKED}")));
+    assert!(!r.c.is_recording());
+}
+
+#[tokio::test]
+async fn screen_lock_before_speech_keeps_nothing() {
+    let mut r = rig(FakeGateway::ok("x"));
+    record(&mut r, silence(400)).await;
+    r.c.interrupted();
+    r.c.settle().await;
+    assert!(r.history.inserted.lock().unwrap().is_empty());
+    assert_eq!(journals(&r.dir), 0);
+    assert!(!r.ui.events().iter().any(|e| e.starts_with("notify")));
+}

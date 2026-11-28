@@ -33,6 +33,8 @@ pub struct EngineConfig {
     pub keep_on_clipboard: bool,
     /// Development and E2E: feed this 16 kHz mono WAV instead of the microphone.
     pub dev_wav: Option<PathBuf>,
+    /// Development and E2E: while this file exists, the screen counts as locked.
+    pub dev_lock_file: Option<PathBuf>,
 }
 
 pub(crate) enum Event {
@@ -195,6 +197,7 @@ pub fn start<R: Runtime>(app: AppHandle<R>, cfg: EngineConfig) -> Result<EngineH
         context,
         epoch,
         cfg.dev_wav,
+        cfg.dev_lock_file,
     ));
     tracing::info!(target: "engine", "dictation engine ready");
     Ok(handle)
@@ -212,6 +215,7 @@ async fn run(
     context: Arc<crate::adapters::AppTracker>,
     epoch: Instant,
     dev_wav: Option<PathBuf>,
+    dev_lock_file: Option<PathBuf>,
 ) {
     let start_settings = || StartSettings {
         languages: settings.read().expect("settings lock").languages.clone(),
@@ -221,11 +225,23 @@ async fn run(
     let mut capture: Option<Arc<AtomicBool>> = None;
     let mut recording: Option<(ChordRecorder, RecordReply)> = None;
     let mut tick = tokio::time::interval(Duration::from_millis(20));
+    // Lock/sleep checks: every 500 ms while recording (spec 4.1).
+    let mut last_check = (Instant::now(), SystemTime::now());
+    // While locked, keys (including auto-repeat of keys held at lock time) are
+    // ignored; the tracker is cleared again once the session unlocks.
+    let mut locked = false;
+    let locked_now = |context: &crate::adapters::AppTracker| {
+        dev_lock_file.as_ref().is_some_and(|p| p.exists())
+            || tokio::task::block_in_place(|| context.desktop.screen_locked()) == Some(true)
+    };
     loop {
         let actions: Vec<Action> = tokio::select! {
             ev = rx.recv() => match ev {
                 None => return,
                 Some(Event::Key(k)) => {
+                    if locked {
+                        continue;
+                    }
                     if let Some((rec, _)) = recording.as_mut() {
                         let outcome = match rec.handle(k) {
                             Recorded::Pending => continue,
@@ -287,9 +303,34 @@ async fn run(
                     continue;
                 }
             },
-            _ = tick.tick() => match recognizer.deadline() {
-                Some(d) if epoch.elapsed().as_millis() as u64 >= d => recognizer.tick(epoch.elapsed().as_millis() as u64),
-                _ => continue,
+            _ = tick.tick() => {
+                if last_check.0.elapsed() >= Duration::from_millis(500) {
+                    let mono = last_check.0.elapsed().as_millis() as u64;
+                    let wall = last_check.1.elapsed().map(|d| d.as_millis() as i64).unwrap_or(0);
+                    last_check = (Instant::now(), SystemTime::now());
+                    let slept = vocalis_context::slept(wall, mono);
+                    let check = locked || slept || controller.is_recording();
+                    let now_locked = check && locked_now(&context);
+                    if slept || now_locked != locked {
+                        // Keys released while locked never reach us: forget them.
+                        let _ = tracker.reset(epoch.elapsed().as_millis() as u64);
+                        recognizer = Recognizer::new(recognizer.config());
+                    }
+                    if locked && !now_locked {
+                        tracing::info!(target: "engine", "session unlocked");
+                    }
+                    locked = now_locked;
+                    if (slept || now_locked) && controller.is_recording() {
+                        tracing::warn!(target: "engine", slept, "recording interrupted by a screen lock or sleep");
+                        stop_capture(&mut capture);
+                        controller.interrupted();
+                        continue;
+                    }
+                }
+                match recognizer.deadline() {
+                    Some(d) if epoch.elapsed().as_millis() as u64 >= d => recognizer.tick(epoch.elapsed().as_millis() as u64),
+                    _ => continue,
+                }
             },
         };
         for action in actions {

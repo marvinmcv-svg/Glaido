@@ -54,7 +54,7 @@ JSON
 
 launch_desktop() {
   HOME="$WORK/home" XDG_DATA_HOME="$WORK/data" VOCALIS_GATEWAY_URL="http://127.0.0.1:$GW_PORT" \
-    VOCALIS_DEV_TOKEN="$TOKEN" VOCALIS_DEV_WAV="$WORK/speech.wav" RUST_LOG=info \
+    VOCALIS_DEV_TOKEN="$TOKEN" VOCALIS_DEV_WAV="$WORK/speech.wav" VOCALIS_DEV_LOCK_FILE="$WORK/locked" RUST_LOG=info \
     "${CARGO_TARGET_DIR:-target}/debug/vocalis-desktop" >"$1" 2>&1 &
   DESKTOP_PID=$!; pids+=($DESKTOP_PID)
   # Cold starts after a rebuild can take a while: wait for the engine, then
@@ -83,6 +83,19 @@ xdotool keyup F8
 sleep 4
 
 pasted="$(cat "$WORK/pasted.txt" 2>/dev/null || true)"
+
+# Screen lock mid-recording (simulated with the dev lock file): the recording
+# stops, nothing is sent or pasted, the speech is kept as a failed record, and
+# the next dictation (below) still works, so no key is left "held".
+xdotool keydown F8
+sleep 1.2
+touch "$WORK/locked"
+sleep 1.5
+xdotool keyup F8
+rm -f "$WORK/locked"
+sleep 2
+after_lock="$(cat "$WORK/pasted.txt" 2>/dev/null || true)"
+lock_logged="$(sed 's/\x1b\[[0-9;]*m//g' "$WORK/desktop.log" | grep -c 'recording interrupted by a screen lock or sleep' || true)"
 
 # Paste into the starting app: start in the target, switch to the other
 # window while speaking; the text must still land in the target.
@@ -138,6 +151,7 @@ recovered="$(sed 's/\x1b\[[0-9;]*m//g' "$WORK/desktop2.log" | grep -c 'recovered
 echo "pasted:     '$pasted'"
 echo "clipboard:  '$clip'"
 echo "recordings: $recordings"
+echo "after lock: '$after_lock' (interrupted $lock_logged)"
 echo "refocused:  '$refocused'"
 echo "other:      '$other'"
 echo "after drop: '$after_drop'"
@@ -151,11 +165,13 @@ status=0
 [[ "$clip" == "ORIGINAL CLIPBOARD" ]] || { echo "FAIL: clipboard not restored"; status=1; }
 [[ "$recordings" -ge 1 ]] || { echo "FAIL: no encrypted recording kept"; status=1; }
 [[ "$(grep -c '"dictation processed"' "$WORK/gateway.log" || true)" -eq 3 ]] || { echo "FAIL: expected exactly three processed dictations (default chord must be inactive)"; status=1; }
+[[ "$after_lock" == "$pasted" ]] || { echo "FAIL: something was pasted after the screen locked"; status=1; }
+[[ "$lock_logged" -eq 1 ]] || { echo "FAIL: the screen lock did not interrupt the recording"; status=1; }
 [[ "$after_drop" == "Hello from the end to end testHello from the end to end testHello from the end to end test" ]] || { echo "FAIL: dictation was lost when the connection dropped mid-recording"; status=1; }
 [[ "$after_offline" == "$after_drop" ]] || { echo "FAIL: something was pasted while offline"; status=1; }
 [[ "$clip_offline" == "ORIGINAL CLIPBOARD" ]] || { echo "FAIL: clipboard changed while offline"; status=1; }
 [[ "$offline_failed" -eq 1 ]] || { echo "FAIL: the offline dictation did not become a failed record"; status=1; }
-[[ "$recordings_offline" -eq 4 ]] || { echo "FAIL: expected 4 kept recordings after the offline dictation, got $recordings_offline"; status=1; }
+[[ "$recordings_offline" -eq 5 ]] || { echo "FAIL: expected 5 kept recordings after the offline dictation (incl. the locked one), got $recordings_offline"; status=1; }
 [[ "$refocused" == "Hello from the end to end testHello from the end to end test" ]] || { echo "FAIL: second dictation did not go back to the starting app"; status=1; }
 [[ -z "$other" ]] || { echo "FAIL: text was pasted into the window the user switched to"; status=1; }
 [[ "$recovered" -eq 1 ]] || { echo "FAIL: audio from the killed recording was not recovered"; status=1; }

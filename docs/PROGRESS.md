@@ -162,7 +162,7 @@ cd apps/desktop && pnpm tauri dev
 **Found during review** (keychain and mic fixed in the next entry)
 - Linux keychain appearing after the user-only key-file fallback was used. Fixed.
 - Unplugging the microphone mid-recording was filed as `CANCELLED`. Fixed.
-- Screen lock: `ChordTracker::reset` is never called, so a key release missed during a lock can leave a recording running. Needs lock/sleep notifications per OS. **Still open.**
+- Screen lock: `ChordTracker::reset` was never called. Fixed in the next-but-one entry.
 
 ## 2026-11-28 — P1 seventh slice: keychain migration and lost microphones
 
@@ -182,3 +182,26 @@ cd apps/desktop && pnpm tauri dev
 - Desktop E2E 3/3 on the file-key path (marker `file`, same keys across the kill-and-restart).
 
 **Not verified:** a real Secret Service / macOS Keychain / Windows Credential Manager appearing or locking (needs real sessions); a physical unplug (manual QA §10).
+
+## 2026-11-28 — P1 eighth slice: screen lock and sleep
+
+**Shipped**
+- **Lock and sleep detection (DN):** every 500 ms while recording the engine checks whether the session is locked: logind `LockedHint` on Linux (X11 and Wayland), `CGSSessionScreenIsLocked` on macOS, the input desktop on Windows. It also checks whether the computer slept (the wall clock jumped ahead of the monotonic clock).
+- **On lock or sleep:**
+  - Recording stops. Nothing is sent or pasted.
+  - Speech so far becomes a failed `SCREEN_LOCKED` record with its audio and Retry; a recording with no speech is dropped.
+  - The hotkey tracker is cleared.
+  - Keys are ignored while locked, including X auto-repeat of keys held at lock time, which in testing otherwise restarted a dictation. The tracker is cleared again on unlock.
+- `VOCALIS_DEV_LOCK_FILE` (development/E2E only, like `VOCALIS_DEV_WAV`) simulates a locked session.
+
+**Verified (Ubuntu 24.04 container)**
+- 191 Rust tests. New:
+  - lock with speech keeps a failed record and sends or pastes nothing;
+  - lock before speech keeps nothing;
+  - sleep detection from clock drift.
+- The context crate passes clippy for macOS and Windows targets (type-checked only).
+- Desktop E2E 4/4 with a new scenario: hold the shortcut, lock mid-speech, release. Exactly one interruption, nothing pasted, the audio kept, and the following dictations (paste into the starting app, network drop) still work.
+
+**Not verified:** real lock screens (logind isn't running in this container; macOS and Windows need real machines), real suspend/resume. Both are in the P1 manual QA checklist §8.
+
+**P1 induced failures, all automated on Linux:** kill the app, drop the network (both ways), lock the screen (simulated), lose the microphone (unit tests).

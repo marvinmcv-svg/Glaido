@@ -64,6 +64,16 @@ pub trait Desktop: Send + Sync {
     fn focused_field(&self) -> FocusedField {
         FocusedField::Unknown
     }
+    /// `Some(true)` while the session is locked; `None` if the platform can't tell.
+    fn screen_locked(&self) -> Option<bool> {
+        None
+    }
+}
+
+/// The computer slept between two checks: wall-clock time advanced much more
+/// than the monotonic clock, which stops during suspend.
+pub fn slept(wall_delta_ms: i64, mono_delta_ms: u64) -> bool {
+    wall_delta_ms - mono_delta_ms as i64 > 5_000
 }
 
 /// A desktop that knows nothing (tests, unsupported sessions).
@@ -155,6 +165,14 @@ mod tests {
         assert_eq!(plan_paste(None, Some(&a), true), PastePlan::Here);
         assert_eq!(plan_paste(Some(&a), None, true), PastePlan::Here);
         assert_eq!(plan_paste(None, None, true), PastePlan::Here);
+    }
+
+    #[test]
+    fn detects_sleep_from_clock_drift() {
+        assert!(!slept(500, 500));
+        assert!(!slept(4_000, 500), "a busy machine or NTP nudge is not sleep");
+        assert!(slept(60_000, 500));
+        assert!(!slept(-3_600_000, 500), "clock set backwards is not sleep");
     }
 
     #[test]

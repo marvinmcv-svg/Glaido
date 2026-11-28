@@ -6259,6 +6259,7 @@ dependencies = [
 name = "vocalis-context"
 version = "0.1.0"
 dependencies = [
+ "dbus",
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",
