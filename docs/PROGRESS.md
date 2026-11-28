@@ -128,3 +128,17 @@ cd apps/desktop && pnpm tauri dev
 **Not verified**
 - macOS and Windows backends at runtime (refocus, Accessibility "nowhere to paste"); they need real machines.
 - Linux terminal paste in a real terminal; Wayland sessions get no context (pastes go where the cursor is).
+
+## 2026-11-28 — P1 fifth slice: network drops
+
+**Shipped**
+- **Resend after a dropped connection (DN):** if the gateway connection drops mid-recording (or never opens), the whole recording is already in the encrypted journal, so at stop it is sent once more on a fresh connection within the same 25 s deadline. If the network is back, the text is pasted as usual; if not, the dictation becomes a failed `NETWORK` record that keeps its audio for Retry. Timeouts and server errors are not resent.
+
+**Verified (Ubuntu 24.04 container)**
+- 176 Rust tests (new: one drop then success pastes and resends the full recording; a persistent failure resends exactly once and keeps the audio).
+- Desktop E2E against the real gateway, which is killed with `kill -9`:
+  - **dropped mid-recording, back before release:** the dictation is still pasted;
+  - **down through release:** nothing pasted, clipboard untouched, one failed record, its audio kept (4 recordings on disk at that point);
+  - plus the earlier checks (custom shortcut, paste into the starting app, kill-9 recovery). 4/4 passes after replacing a fixed start-up sleep with a wait for "dictation engine ready" (one earlier cold-start run had been flaky).
+
+**P1 exit: induced failures.** Covered: killing the app mid-recording, dropping the network (both ways). Still open: **screen lock**; on Linux it needs a session with a screen locker, so it's a manual QA item for each OS.

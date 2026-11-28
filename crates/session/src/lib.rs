@@ -231,11 +231,31 @@ impl Controller {
         self.ui.bar(BarState::Processing);
         let generation = self.generation.clone();
         let my_gen = generation.load(Ordering::SeqCst);
-        let (ui, history, cfg) = (self.ui.clone(), self.history.clone(), self.cfg.clone());
+        let (ui, history, cfg, gateway) = (
+            self.ui.clone(),
+            self.history.clone(),
+            self.cfg.clone(),
+            self.gateway.clone(),
+        );
         self.tasks.spawn(async move {
             let id = a.id.clone();
             let entry = base_entry(&a);
-            let result = finish_link(a.link, &ui, cfg.finish_timeout, cfg.slow_after).await;
+            let started = tokio::time::Instant::now();
+            let result = match finish_link(a.link, &ui, cfg.finish_timeout, cfg.slow_after).await {
+                // The connection dropped (or never opened) but the whole
+                // recording is in the journal: send it once more on a fresh
+                // connection before giving up, within the same overall deadline.
+                Err(e @ (GatewayError::Connect | GatewayError::Disconnected)) => {
+                    let left = cfg.finish_timeout.saturating_sub(started.elapsed());
+                    tracing::info!(target: "session", error = %e, "connection lost; resending the recording");
+                    if a.journal_path.exists() && !left.is_zero() {
+                        resend(&gateway, &a.journal_path, &cfg.key, &a.settings, left).await
+                    } else {
+                        Err(e)
+                    }
+                }
+                r => r,
+            };
             let moved_on = generation.load(Ordering::SeqCst) != my_gen;
             if !moved_on {
                 ui.bar(BarState::Hidden);
@@ -443,14 +463,18 @@ fn deliver(r: FinalResult, entry: NewEntry, ui: &Arc<dyn Ui>, history: &Arc<dyn 
     }
 }
 
-async fn retry_inner(
+/// Send a whole journal on a fresh gateway session.
+async fn resend(
     gateway: &Arc<dyn Gateway>,
     path: &Path,
     key: &Key,
     settings: &StartSettings,
     timeout: Duration,
-) -> Result<FinalResult, String> {
-    let recovered = journal::read(path, key).map_err(|_| "AUDIO_UNREADABLE".to_owned())?;
+) -> Result<FinalResult, GatewayError> {
+    let recovered = journal::read(path, key).map_err(|_| GatewayError::Server {
+        code: "AUDIO_UNREADABLE".into(),
+        retryable: false,
+    })?;
     let work = async {
         let mut s = gateway.open(settings).await?;
         for chunk in recovered.samples.chunks(TARGET_RATE as usize) {
@@ -458,11 +482,24 @@ async fn retry_inner(
         }
         s.finish().await
     };
-    match tokio::time::timeout(timeout, work).await {
-        Ok(Ok(r)) => Ok(r),
-        Ok(Err(e)) => Err(e.record_code().to_owned()),
-        Err(_) => Err("NETWORK".to_owned()),
-    }
+    tokio::time::timeout(timeout, work)
+        .await
+        .unwrap_or(Err(GatewayError::Timeout))
+}
+
+async fn retry_inner(
+    gateway: &Arc<dyn Gateway>,
+    path: &Path,
+    key: &Key,
+    settings: &StartSettings,
+    timeout: Duration,
+) -> Result<FinalResult, String> {
+    resend(gateway, path, key, settings, timeout)
+        .await
+        .map_err(|e| match e {
+            GatewayError::Server { code, .. } if code == "AUDIO_UNREADABLE" => code,
+            e => e.record_code().to_owned(),
+        })
 }
 
 #[cfg(test)]

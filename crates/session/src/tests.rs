@@ -21,6 +21,9 @@ struct FakeGateway {
     finish_delay: Duration,
     received: Arc<Mutex<Vec<i16>>>,
     cancelled: Arc<Mutex<u32>>,
+    /// The next N sessions drop their connection on the first send.
+    flaky: Arc<Mutex<u32>>,
+    opens: Arc<Mutex<u32>>,
 }
 
 impl FakeGateway {
@@ -38,28 +41,37 @@ impl FakeGateway {
             finish_delay: Duration::ZERO,
             received: Default::default(),
             cancelled: Default::default(),
+            flaky: Default::default(),
+            opens: Default::default(),
         }
     }
 }
 
-struct FakeSession(FakeGateway);
+struct FakeSession(FakeGateway, bool);
 
 #[async_trait]
 impl Gateway for FakeGateway {
     async fn open(&self, _: &StartSettings) -> Result<Box<dyn GatewaySession>, GatewayError> {
+        *self.opens.lock().unwrap() += 1;
         match self.open {
             OpenBehavior::Ok => {}
             OpenBehavior::Fail => return Err(GatewayError::Connect),
             OpenBehavior::Delay(d) => tokio::time::sleep(d).await,
         }
-        Ok(Box::new(FakeSession(self.clone())))
+        let broken = {
+            let mut f = self.flaky.lock().unwrap();
+            let b = *f > 0;
+            *f = f.saturating_sub(1);
+            b
+        };
+        Ok(Box::new(FakeSession(self.clone(), broken)))
     }
 }
 
 #[async_trait]
 impl GatewaySession for FakeSession {
     async fn send_audio(&mut self, pcm: &[i16]) -> Result<(), GatewayError> {
-        if self.0.send_fails {
+        if self.0.send_fails || self.1 {
             return Err(GatewayError::Disconnected);
         }
         self.0.received.lock().unwrap().extend_from_slice(pcm);
@@ -281,6 +293,40 @@ async fn connection_drop_mid_recording_still_keeps_audio() {
     assert_eq!(rec.error_code.as_deref(), Some("NETWORK"));
     let back = journal::read(Path::new(rec.audio_path.as_deref().unwrap()), &[3u8; 32]).unwrap();
     assert_eq!(back.samples.len(), 800 * 16);
+}
+
+#[tokio::test]
+async fn a_dropped_connection_resends_the_recording_and_still_pastes() {
+    let gw = FakeGateway::ok("Back online.");
+    *gw.flaky.lock().unwrap() = 1;
+    let mut r = rig(gw);
+    record(&mut r, speech(800)).await;
+    r.c.stop();
+    r.c.settle().await;
+    assert_eq!(*r.gw.opens.lock().unwrap(), 2, "original + one resend");
+    assert_eq!(
+        r.gw.received.lock().unwrap().len(),
+        800 * 16,
+        "the whole recording was resent"
+    );
+    let rec = r.history.inserted.lock().unwrap()[0].clone();
+    assert_eq!(rec.error_code, None);
+    assert!(r.ui.events().contains(&"paste Back online.".to_owned()));
+}
+
+#[tokio::test]
+async fn resend_happens_once_then_fails_with_audio_kept() {
+    let gw = FakeGateway::ok("x");
+    *gw.flaky.lock().unwrap() = 5;
+    let mut r = rig(gw);
+    record(&mut r, speech(800)).await;
+    r.c.stop();
+    r.c.settle().await;
+    assert_eq!(*r.gw.opens.lock().unwrap(), 2);
+    let rec = r.history.inserted.lock().unwrap()[0].clone();
+    assert_eq!(rec.error_code.as_deref(), Some("NETWORK"));
+    assert!(rec.audio_path.as_deref().is_some_and(|p| Path::new(p).exists()));
+    assert!(!r.ui.events().iter().any(|e| e.starts_with("paste")));
 }
 
 #[tokio::test]

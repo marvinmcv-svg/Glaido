@@ -184,6 +184,7 @@ pub fn start<R: Runtime>(app: AppHandle<R>, cfg: EngineConfig) -> Result<EngineH
         epoch,
         cfg.dev_wav,
     ));
+    tracing::info!(target: "engine", "dictation engine ready");
     Ok(handle)
 }
 

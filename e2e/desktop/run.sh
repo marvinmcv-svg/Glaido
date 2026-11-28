@@ -33,8 +33,13 @@ Xvfb "$DISPLAY" -screen 0 1280x800x24 >/dev/null 2>&1 & pids+=($!)
 sleep 1
 TOKEN="$("$PY" e2e/desktop/make_inputs.py "$WORK/speech.wav" "$SECRET")"
 "$PY" e2e/desktop/mock_stt.py "$STT_PORT" "hello from the end to end test" "$WORK/stt.log" & pids+=($!)
-SUPABASE_JWT_SECRET="$SECRET" GROQ_API_KEY=e2e GROQ_BASE_URL="http://127.0.0.1:$STT_PORT" PORT="$GW_PORT" \
-  ./target/debug/vocalis-gateway >"$WORK/gateway.log" 2>&1 & pids+=($!)
+start_gateway() {
+  SUPABASE_JWT_SECRET="$SECRET" GROQ_API_KEY=e2e GROQ_BASE_URL="http://127.0.0.1:$STT_PORT" PORT="$GW_PORT" \
+    ./target/debug/vocalis-gateway >>"$WORK/gateway.log" 2>&1 &
+  GW_PID=$!; pids+=($GW_PID)
+  for _ in $(seq 50); do curl -sf "http://127.0.0.1:$GW_PORT/healthz" >/dev/null && return; sleep 0.1; done
+}
+start_gateway
 
 printf 'ORIGINAL CLIPBOARD' | xclip -selection clipboard &
 sleep 0.5
@@ -52,9 +57,12 @@ launch_desktop() {
     VOCALIS_DEV_TOKEN="$TOKEN" VOCALIS_DEV_WAV="$WORK/speech.wav" RUST_LOG=info \
     ./target/debug/vocalis-desktop >"$1" 2>&1 &
   DESKTOP_PID=$!; pids+=($DESKTOP_PID)
+  # Cold starts after a rebuild can take a while: wait for the engine, then
+  # give the webview and key listener a moment.
+  for _ in $(seq 300); do grep -q "dictation engine ready" "$1" 2>/dev/null && break; sleep 0.1; done
+  sleep 2
 }
 launch_desktop "$WORK/desktop.log"
-sleep 6
 
 "$PY" e2e/desktop/target_app.py "$WORK/other.txt" "E2E other" 200 nofocus & pids+=($!)
 sleep 1
@@ -91,6 +99,33 @@ other="$(cat "$WORK/other.txt" 2>/dev/null || true)"
 clip="$(xclip -selection clipboard -o 2>/dev/null || true)"
 recordings="$(find "$WORK/data" -name '*.wav.enc' | wc -l)"
 
+# Network drop mid-recording, back before release: the recording is resent
+# from the journal and still pasted.
+xdotool search --name "E2E target" windowfocus --sync 2>/dev/null || true
+sleep 0.5
+xdotool keydown F8
+sleep 1
+kill -9 "$GW_PID"
+sleep 0.5
+start_gateway
+sleep 0.5
+xdotool keyup F8
+sleep 4
+after_drop="$(cat "$WORK/pasted.txt" 2>/dev/null || true)"
+
+# Network down through release: nothing pasted, clipboard untouched, a failed
+# record that keeps its audio for Retry.
+kill -9 "$GW_PID"
+xdotool keydown F8
+sleep 2
+xdotool keyup F8
+sleep 4
+after_offline="$(cat "$WORK/pasted.txt" 2>/dev/null || true)"
+clip_offline="$(xclip -selection clipboard -o 2>/dev/null || true)"
+recordings_offline="$(find "$WORK/data" -name '*.wav.enc' | wc -l)"
+offline_failed="$(sed 's/\x1b\[[0-9;]*m//g' "$WORK/desktop.log" | grep -c 'dictation failed; audio kept for retry' || true)"
+start_gateway
+
 # Crash mid-recording: hold the chord, kill -9 the app while audio is being
 # journaled, then restart it and look for the recovery report.
 xdotool keydown F8
@@ -99,13 +134,14 @@ kill -9 "$DESKTOP_PID" 2>/dev/null || true
 xdotool keyup F8
 sleep 1
 launch_desktop "$WORK/desktop2.log"
-sleep 6
 recovered="$(sed 's/\x1b\[[0-9;]*m//g' "$WORK/desktop2.log" | grep -c 'recovered interrupted recordings recovered=1' || true)"
 echo "pasted:     '$pasted'"
 echo "clipboard:  '$clip'"
 echo "recordings: $recordings"
 echo "refocused:  '$refocused'"
 echo "other:      '$other'"
+echo "after drop: '$after_drop'"
+echo "offline:    failed=$offline_failed recordings=$recordings_offline clipboard='$clip_offline'"
 echo "recovered:  $recovered"
 echo "dictations: $(grep -c '"dictation processed"' "$WORK/gateway.log" || true)"
 echo "stt calls:  $(wc -l < "$WORK/stt.log" 2>/dev/null || echo 0)"
@@ -114,7 +150,12 @@ status=0
 [[ "$pasted" == "Hello from the end to end test" ]] || { echo "FAIL: unexpected pasted text"; status=1; }
 [[ "$clip" == "ORIGINAL CLIPBOARD" ]] || { echo "FAIL: clipboard not restored"; status=1; }
 [[ "$recordings" -ge 1 ]] || { echo "FAIL: no encrypted recording kept"; status=1; }
-[[ "$(grep -c '"dictation processed"' "$WORK/gateway.log" || true)" -eq 2 ]] || { echo "FAIL: expected exactly two dictations (default chord must be inactive)"; status=1; }
+[[ "$(grep -c '"dictation processed"' "$WORK/gateway.log" || true)" -eq 3 ]] || { echo "FAIL: expected exactly three processed dictations (default chord must be inactive)"; status=1; }
+[[ "$after_drop" == "Hello from the end to end testHello from the end to end testHello from the end to end test" ]] || { echo "FAIL: dictation was lost when the connection dropped mid-recording"; status=1; }
+[[ "$after_offline" == "$after_drop" ]] || { echo "FAIL: something was pasted while offline"; status=1; }
+[[ "$clip_offline" == "ORIGINAL CLIPBOARD" ]] || { echo "FAIL: clipboard changed while offline"; status=1; }
+[[ "$offline_failed" -eq 1 ]] || { echo "FAIL: the offline dictation did not become a failed record"; status=1; }
+[[ "$recordings_offline" -eq 4 ]] || { echo "FAIL: expected 4 kept recordings after the offline dictation, got $recordings_offline"; status=1; }
 [[ "$refocused" == "Hello from the end to end testHello from the end to end test" ]] || { echo "FAIL: second dictation did not go back to the starting app"; status=1; }
 [[ -z "$other" ]] || { echo "FAIL: text was pasted into the window the user switched to"; status=1; }
 [[ "$recovered" -eq 1 ]] || { echo "FAIL: audio from the killed recording was not recovered"; status=1; }
