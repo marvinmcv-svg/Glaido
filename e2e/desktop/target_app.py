@@ -1,5 +1,5 @@
 """A focused text box that writes its contents to a file, so E2E can assert what was pasted."""
-import sys, tkinter as tk
+import os, sys, tkinter as tk
 
 out = sys.argv[1]
 title = sys.argv[2] if len(sys.argv) > 2 else "E2E target"
@@ -11,8 +11,10 @@ entry = tk.Entry(root, font=("DejaVu Sans", 14))
 entry.pack(fill="x", padx=10, pady=20)
 
 def tick():
-    with open(out, "w") as f:
+    # Write-then-rename, so a reader never sees a truncated, empty file.
+    with open(out + ".tmp", "w") as f:
         f.write(entry.get())
+    os.replace(out + ".tmp", out)
     root.after(100, tick)
 
 def focus():

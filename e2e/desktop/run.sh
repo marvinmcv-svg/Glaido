@@ -35,7 +35,7 @@ TOKEN="$("$PY" e2e/desktop/make_inputs.py "$WORK/speech.wav" "$SECRET")"
 "$PY" e2e/desktop/mock_stt.py "$STT_PORT" "hello from the end to end test" "$WORK/stt.log" & pids+=($!)
 start_gateway() {
   SUPABASE_JWT_SECRET="$SECRET" GROQ_API_KEY=e2e GROQ_BASE_URL="http://127.0.0.1:$STT_PORT" PORT="$GW_PORT" \
-    ./target/debug/vocalis-gateway >>"$WORK/gateway.log" 2>&1 &
+    "${CARGO_TARGET_DIR:-target}/debug/vocalis-gateway" >>"$WORK/gateway.log" 2>&1 &
   GW_PID=$!; pids+=($GW_PID)
   for _ in $(seq 50); do curl -sf "http://127.0.0.1:$GW_PORT/healthz" >/dev/null && return; sleep 0.1; done
 }
@@ -55,7 +55,7 @@ JSON
 launch_desktop() {
   HOME="$WORK/home" XDG_DATA_HOME="$WORK/data" VOCALIS_GATEWAY_URL="http://127.0.0.1:$GW_PORT" \
     VOCALIS_DEV_TOKEN="$TOKEN" VOCALIS_DEV_WAV="$WORK/speech.wav" RUST_LOG=info \
-    ./target/debug/vocalis-desktop >"$1" 2>&1 &
+    "${CARGO_TARGET_DIR:-target}/debug/vocalis-desktop" >"$1" 2>&1 &
   DESKTOP_PID=$!; pids+=($DESKTOP_PID)
   # Cold starts after a rebuild can take a while: wait for the engine, then
   # give the webview and key listener a moment.
