@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canReport, recordChips, reportOutcome } from "./activity";
+import { canReport, recordChips, reportOutcome } from "./activityChips";
 import type { HistoryRecord } from "./history";
 
 const base: HistoryRecord = {

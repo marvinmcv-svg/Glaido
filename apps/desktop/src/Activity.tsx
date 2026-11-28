@@ -9,7 +9,7 @@ import {
   type ReportCategory,
   type ReportResult,
   reportOutcome,
-} from "./activity";
+} from "./activityChips";
 import {
   canRetry,
   type DayGroup,

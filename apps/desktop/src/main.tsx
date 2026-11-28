@@ -12,7 +12,7 @@ import { Dictionary } from "./Dictionary";
 import { HomeStats } from "./HomeStats";
 import { Insights } from "./Insights";
 import { Palette } from "./Palette";
-import { isPaletteShortcut, isSettingsShortcut, type PaletteAction } from "./palette";
+import { isPaletteShortcut, isSettingsShortcut, type PaletteAction } from "./paletteItems";
 import { currentPlatform, DEFAULT_HOTKEYS } from "./platform";
 import { chordKeys, useSettings } from "./settings";
 import { Snippets } from "./Snippets";

@@ -48,6 +48,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
       - run: pnpm check:clean-room
+      - run: pnpm check:case
       - name: Lint, typecheck, unit tests, build
         run: pnpm turbo run lint typecheck test build
         env:

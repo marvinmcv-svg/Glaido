@@ -13,7 +13,8 @@
     "test": "turbo run test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check:clean-room": "bash scripts/no-reference-strings.sh"
+    "check:clean-room": "bash scripts/no-reference-strings.sh",
+    "check:case": "bash scripts/check-case-clashes.sh"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

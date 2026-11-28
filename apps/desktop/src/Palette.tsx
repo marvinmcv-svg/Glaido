@@ -11,7 +11,7 @@ import {
   type PaletteAction,
   type PaletteRow,
   transcriptRows,
-} from "./palette";
+} from "./paletteItems";
 import { effectiveTheme } from "./theme";
 
 type Props = {

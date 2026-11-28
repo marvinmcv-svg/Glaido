@@ -10,7 +10,7 @@ import {
   moveSelection,
   TRANSCRIPT_LIMIT,
   transcriptRows,
-} from "./palette";
+} from "./paletteItems";
 
 const PAGES = ["Home", "Dictionary", "Snippets", "Formatting", "Insights", "Settings"];
 const rows = buildRows({ pages: PAGES, settingsShortcut: "Ctrl+,", theme: "dark" });
