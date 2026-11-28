@@ -6,6 +6,7 @@
 #   cargo build -p vocalis-gateway -p vocalis-latency
 #   e2e/latency/run_mock.sh                          # expect GATE PASSED
 #   MOCK_STT_DELAY_MS=1500 e2e/latency/run_mock.sh   # expect GATE FAILED
+#   AUDIO_DIR=e2e/latency/audio e2e/latency/run_mock.sh   # recorded speech
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 BIN="${CARGO_TARGET_DIR:-target}/debug"
@@ -24,8 +25,10 @@ SUPABASE_JWT_SECRET="$SECRET" GROQ_API_KEY=mock GROQ_BASE_URL="http://127.0.0.1:
   "$BIN/vocalis-gateway" >"$WORK/gateway.log" 2>&1 & pids+=($!)
 for _ in $(seq 50); do curl -sf "http://127.0.0.1:$GW_PORT/healthz" >/dev/null && break; sleep 0.1; done
 
+# AUDIO_DIR=e2e/latency/audio uses recorded speech (make_speech.sh); default synthetic.
+if [[ -n "${AUDIO_DIR:-}" ]]; then SOURCE="--audio-dir $AUDIO_DIR"; else SOURCE="--synthetic"; fi
 echo "mock provider delay: ${MOCK_STT_DELAY_MS:-300} ms; manifest: $MANIFEST"
 # Synthetic audio streamed 20x faster than real time: stop -> final doesn't
 # depend on the streaming pace, and a 60 s dictation then takes 3 s to send.
 "$BIN/vocalis-latency" --gateway "http://127.0.0.1:$GW_PORT" --jwt-secret "$SECRET" \
-  --manifest "$MANIFEST" --synthetic --speed "${SPEED:-20}" --json "$WORK/report.json" --gate "$@"
+  --manifest "$MANIFEST" $SOURCE --speed "${SPEED:-20}" --json "$WORK/report.json" --gate "$@"

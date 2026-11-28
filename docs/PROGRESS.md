@@ -142,3 +142,24 @@ cd apps/desktop && pnpm tauri dev
   - plus the earlier checks (custom shortcut, paste into the starting app, kill-9 recovery). 4/4 passes after replacing a fixed start-up sleep with a wait for "dictation engine ready" (one earlier cold-start run had been flaky).
 
 **P1 exit: induced failures.** Covered: killing the app mid-recording, dropping the network (both ways). Still open: **screen lock**; on Linux it needs a session with a screen locker, so it's a manual QA item for each OS.
+
+## 2026-11-28 — P1 sixth slice (parallel agents): latency harness, corpus, ESLint, docs
+
+**Shipped** (three agents in separate worktrees, merged and re-verified together)
+- **Latency harness (`tools/latency`, `vocalis-latency`):** times connect → ready and stop → final over the app's own gateway client (now `crates/client`, shared with the desktop) against the §5.9 budgets (short p50 < 1.0 s, p95 < 2.0 s; 60 s dictation p50 < 3.0 s), with WER for recorded speech, JSON output and a `--gate` exit code. `e2e/latency/run_mock.sh` validates it against a mock provider with a configurable delay. Runbook: `docs/runbooks/latency.md`.
+- **Corpus:** `e2e/latency/utterances.tsv` (45 short, 5 long, original text) and `make_speech.sh` (Piper TTS, then macOS `say`, then espeak).
+- **ESLint** (P0 gap closed): flat config with typescript-eslint, react-hooks, jsx-a11y and Next rules; 16 findings fixed without behaviour changes; runs in CI.
+- **Docs:** `docs/troubleshooting.md` (permissions, Wayland, keychain fallback, terminals, nowhere to paste, recovery, sign-in), `docs/qa/p1-manual.md` (10-app matrix, screen lock, Fn, starting app, mic switching, wizard), P1 rows in `docs/PARITY.md`.
+- E2E hardening: the target app writes atomically (fixed a rare empty read); scripts honour `CARGO_TARGET_DIR`.
+
+**Verified (Ubuntu 24.04 container, merged tree)**
+- 181 Rust tests, clippy, rustfmt; `turbo lint typecheck test build` 14/14; Prettier; clean-room scan.
+- Desktop E2E 3/3.
+- Harness vs mock provider over all 50 lines: 300 ms delay → short p50 307 ms, p95 309 ms, long p50 ≈ 350 ms, gate passes (gateway overhead ≈ 7 ms); 1500 ms → gate fails (exit 1). The 50 Piper recordings (440 s total) stream through the full chain; WER is meaningless against the fixed mock transcript.
+
+**Not verified:** real providers (needs Groq/Deepgram/Anthropic keys on the gateway). That run is the remaining P1 latency exit check: `docs/runbooks/latency.md`.
+
+**Found during review, still open**
+- Linux keychain appearing after the user-only key-file fallback was used: new keys are created, so older History can't be opened and the session is lost. Fix: migrate file keys into the keychain on first access.
+- Unplugging the microphone mid-recording is filed as `CANCELLED` (or dropped if no speech yet) rather than a mic-disconnected failure.
+- Screen lock: `ChordTracker::reset` is never called, so a key release missed during a lock can leave a recording running. Needs lock/sleep notifications per OS.

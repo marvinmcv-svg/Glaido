@@ -32,6 +32,7 @@ export default defineConfig(
       "**/test-results/**",
       "**/playwright-report/**",
       "target/**",
+      ".claude/**",
       "apps/desktop/src-tauri/**",
       "apps/gateway/**",
       "apps/webapp/next-env.d.ts",
