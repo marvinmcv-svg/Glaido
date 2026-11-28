@@ -9,6 +9,7 @@ publish.workspace = true
 [dependencies]
 rusqlite = { version = "0.37", features = ["bundled-sqlcipher-vendored-openssl", "backup"] }
 serde.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 vocalis-core.workspace = true
 uuid = { version = "1", features = ["v4"] }

@@ -219,6 +219,7 @@ async fn run(
 ) {
     let start_settings = || StartSettings {
         languages: settings.read().expect("settings lock").languages.clone(),
+        rules: history.lock().rule_set(now_ms()).ok(),
         ..Default::default()
     };
     let microphone = || settings.read().expect("settings lock").microphone.clone();

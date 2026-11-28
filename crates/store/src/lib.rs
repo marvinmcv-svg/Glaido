@@ -173,6 +173,25 @@ const MIGRATIONS: &[&str] = &[
       deleted_at INTEGER
     );
     ",
+    // v3: formatting rules (spec 4.5.3); see `rules.rs`. `apps` is a JSON array
+    // of {id, name}, `sites` a JSON array of hosts.
+    "
+    CREATE TABLE formatting_rules (
+      id TEXT PRIMARY KEY,
+      kind TEXT NOT NULL CHECK (kind IN ('all_apps','email','custom')),
+      name TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      style TEXT NOT NULL DEFAULT 'standard' CHECK (style IN ('standard','casual','lowercase')),
+      raw INTEGER NOT NULL DEFAULT 0,
+      prompt TEXT NOT NULL DEFAULT '',
+      apps TEXT NOT NULL DEFAULT '[]',
+      sites TEXT NOT NULL DEFAULT '[]',
+      position INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER
+    );
+    ",
 ];
 
 pub struct Store {
@@ -505,6 +524,8 @@ pub fn local_date(ms: i64, utc_offset_minutes: i32) -> String {
 
 mod personal;
 pub use personal::{DictionaryEntry, PersonalError, SnippetEntry};
+mod rules;
+pub use rules::{AppRef, FormattingRule, PresetOutcome, RuleDraft, RulesError, UsedApp};
 
 #[cfg(test)]
 mod tests;

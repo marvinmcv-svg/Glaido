@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import icon from "../assets/app-icon.svg";
 import { AccountRow } from "./Account";
 import { Activity } from "./Activity";
+import { Formatting } from "./Formatting";
 import "./app.css";
 import { currentPlatform, DEFAULT_HOTKEYS } from "./platform";
 import { chordKeys, useSettings } from "./settings";
@@ -145,6 +146,8 @@ function App() {
               </div>
             </div>
           </Card>
+        ) : page === "Formatting" ? (
+          <Formatting />
         ) : (
           <p className="muted">Coming in P2.</p>
         )}

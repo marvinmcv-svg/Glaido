@@ -4,6 +4,7 @@
 mod adapters;
 mod auth;
 mod engine;
+mod formatting_cmds;
 mod history_cmds;
 mod secrets;
 mod settings;
@@ -228,6 +229,14 @@ pub fn run() {
             setup_cmds::mic_test_stop,
             setup_cmds::permissions_status,
             setup_cmds::open_permission_settings,
+            formatting_cmds::rules_get,
+            formatting_cmds::rule_save,
+            formatting_cmds::rule_delete,
+            formatting_cmds::rule_toggle,
+            formatting_cmds::rule_add_preset,
+            formatting_cmds::formatting_presets,
+            formatting_cmds::apps_most_used,
+            formatting_cmds::apps_installed,
         ])
         .setup(|app| {
             use tauri_plugin_deep_link::DeepLinkExt;

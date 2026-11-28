@@ -1,0 +1,173 @@
+/* Formatting page (spec 4.5.3). Kept apart from app.css so pages stay independent. */
+.formatting section {
+  margin-bottom: var(--space-8);
+}
+.formatting h2 {
+  font-size: 16px;
+  margin: 0 0 var(--space-3);
+}
+.formatting .lead {
+  margin: 0 0 var(--space-6);
+  max-width: 640px;
+}
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+.section-head h2 {
+  margin: 0;
+}
+.rule {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-2);
+}
+.rule:not([data-enabled]) .rule-main {
+  opacity: 0.6;
+}
+.rule-main {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.rule-title,
+.preset-name {
+  font-weight: 600;
+}
+.rule-actions,
+.inline,
+.editor-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.rule-editor {
+  display: grid;
+  gap: var(--space-4);
+  margin-bottom: var(--space-2);
+}
+.field {
+  display: grid;
+  gap: var(--space-1);
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.field .input {
+  margin: 0;
+}
+.field legend {
+  margin-bottom: var(--space-2);
+}
+.styles {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.style-option {
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  cursor: pointer;
+}
+.style-option[data-checked] {
+  border-color: var(--accent-base);
+}
+.style-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.style-option:focus-within {
+  outline: 2px solid var(--focus-ring);
+}
+.style-label {
+  font-weight: 600;
+}
+.style-example {
+  font-size: 13px;
+  font-style: italic;
+  margin-top: var(--space-1);
+}
+.prompt {
+  resize: vertical;
+  min-height: 80px;
+}
+.counter {
+  text-align: right;
+}
+.counter[data-over] {
+  color: var(--accent-base);
+  font-weight: 600;
+}
+.chip-remove,
+.link-button {
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0 2px;
+}
+.link-button {
+  text-decoration: underline;
+}
+.chip-quiet {
+  background: transparent;
+  border: 1px solid var(--border-default);
+}
+.picker {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+  max-height: 360px;
+  overflow: auto;
+}
+.picker ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  columns: 2;
+}
+.picker-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: var(--space-1);
+}
+.picker-item {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: 2px 0;
+  font-size: 14px;
+}
+.picker-item[data-owned] {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-3);
+}
+.preset {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+}
+.preset .vc-button {
+  justify-self: start;
+}
+.inline label {
+  white-space: nowrap;
+}
