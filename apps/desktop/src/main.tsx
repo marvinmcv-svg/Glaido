@@ -29,6 +29,11 @@ function App() {
     : DEFAULT_HOTKEYS[platform];
   const showWizard = settings !== null && (wizard || !settings.setupCompleted);
 
+  const [engineError, setEngineError] = useState<string | null>(null);
+  useEffect(() => {
+    if (isTauri()) void invoke<string | null>("engine_error").then(setEngineError);
+  }, []);
+
   useEffect(() => {
     if (isTauri())
       invoke<AppInfo>("app_info")
@@ -49,6 +54,11 @@ function App() {
         ))}
       </nav>
       <main className="content">
+        {engineError ? (
+          <p role="alert" className="error-text">
+            Dictation is off: {engineError}
+          </p>
+        ) : null}
         <h1>{page}</h1>
         {page === "Home" ? (
           <>

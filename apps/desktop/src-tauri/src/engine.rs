@@ -104,8 +104,20 @@ pub fn start<R: Runtime>(app: AppHandle<R>, cfg: EngineConfig) -> Result<EngineH
     let journal_dir = cfg.data_dir.join("recordings");
     std::fs::create_dir_all(&journal_dir).map_err(|e| e.to_string())?;
     let key_dir = cfg.data_dir.join("keys");
-    let audio_key = crate::secrets::key("audio", &key_dir);
-    let db_key = crate::secrets::key("history", &key_dir);
+    // A keychain that is still unlocking at login gets a few seconds.
+    let load = |name: &str| {
+        let mut last = None;
+        for attempt in 0..5 {
+            match crate::secrets::key(name, &key_dir) {
+                Ok(k) => return Ok(k),
+                Err(e) => last = Some(e),
+            }
+            std::thread::sleep(Duration::from_millis(500 * (attempt + 1)));
+        }
+        Err(last.expect("at least one attempt").to_string())
+    };
+    let audio_key = load("audio")?;
+    let db_key = load("history")?;
     let (store, report) =
         vocalis_store::Store::open(&cfg.data_dir.join("history.db"), &db_key).map_err(|e| e.to_string())?;
     if report.restored_from_backup || report.rebuilt_empty {
@@ -270,7 +282,7 @@ async fn run(
                 Some(Event::CaptureFailed(e)) => {
                     tracing::error!(target: "engine", error = %e, "microphone unavailable");
                     stop_capture(&mut capture);
-                    controller.cancel();
+                    controller.mic_failed(&e);
                     recognizer = Recognizer::new(recognizer.config());
                     continue;
                 }

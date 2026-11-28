@@ -95,12 +95,30 @@ pub enum Sound {
 /// User-facing notices (Appendix C codes). Copy is written in the UI layer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Notice {
-    TranscriptionFailed { record_id: String, code: String },
-    NowhereToPaste { record_id: String },
-    PasteFailed { record_id: String },
+    TranscriptionFailed {
+        record_id: String,
+        code: String,
+    },
+    NowhereToPaste {
+        record_id: String,
+    },
+    PasteFailed {
+        record_id: String,
+    },
     RecordingLimitNear,
     MicSilent,
-    RetrySucceeded { record_id: String },
+    RetrySucceeded {
+        record_id: String,
+    },
+    /// The microphone went away mid-recording. `record_id` is set when there
+    /// was speech worth keeping (a failed record with Retry).
+    MicDisconnected {
+        record_id: Option<String>,
+    },
+    /// The microphone could not be opened at all (missing, busy, no permission).
+    MicUnavailable {
+        reason: String,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

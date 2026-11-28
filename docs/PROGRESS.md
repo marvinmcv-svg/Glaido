@@ -159,7 +159,26 @@ cd apps/desktop && pnpm tauri dev
 
 **Not verified:** real providers (needs Groq/Deepgram/Anthropic keys on the gateway). That run is the remaining P1 latency exit check: `docs/runbooks/latency.md`.
 
-**Found during review, still open**
-- Linux keychain appearing after the user-only key-file fallback was used: new keys are created, so older History can't be opened and the session is lost. Fix: migrate file keys into the keychain on first access.
-- Unplugging the microphone mid-recording is filed as `CANCELLED` (or dropped if no speech yet) rather than a mic-disconnected failure.
-- Screen lock: `ChordTracker::reset` is never called, so a key release missed during a lock can leave a recording running. Needs lock/sleep notifications per OS.
+**Found during review** (keychain and mic fixed in the next entry)
+- Linux keychain appearing after the user-only key-file fallback was used. Fixed.
+- Unplugging the microphone mid-recording was filed as `CANCELLED`. Fixed.
+- Screen lock: `ChordTracker::reset` is never called, so a key release missed during a lock can leave a recording running. Needs lock/sleep notifications per OS. **Still open.**
+
+## 2026-11-28 — P1 seventh slice: keychain migration and lost microphones
+
+**Shipped**
+- **Keys survive storage changes (DN):** the keychain sits behind a `Vault` trait. Keys and the sign-in session found in user-only fallback files are moved into a keychain that appears later (written, read back, then the file is deleted), so History, recordings and sign-in carry over. A `keys/store` marker records where keys live. If it says "keychain" and the keychain can't be opened (still locked at login), Vocalis retries for a few seconds, then leaves dictation off with a message on Home, instead of inventing new keys that would make History unreadable.
+- **Lost microphone (DN, FE):**
+  - Unplugged mid-speech: a failed `MIC_DISCONNECTED` record that keeps everything said so far, with Retry, plus a "Microphone disconnected" notice.
+  - Unplugged before any speech: nothing kept, notice only.
+  - The mic couldn't open at all: a "Couldn't open the microphone" notice.
+- Troubleshooting guide and QA checklist updated to match.
+
+**Verified (Ubuntu 24.04 container)**
+- 188 Rust tests. New:
+  - keychain rules, against an in-memory vault: created once, file fallback stable, a later keychain adopts the file key, a locked keychain never forks keys, the session migrates;
+  - mic loss: mid-speech, before speech, never opened.
+- clippy, rustfmt; `turbo lint typecheck test build` 14/14; Prettier; clean-room scan.
+- Desktop E2E 3/3 on the file-key path (marker `file`, same keys across the kill-and-restart).
+
+**Not verified:** a real Secret Service / macOS Keychain / Windows Credential Manager appearing or locking (needs real sessions); a physical unplug (manual QA §10).

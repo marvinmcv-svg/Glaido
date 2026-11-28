@@ -32,6 +32,9 @@ use vocalis_core::product::{MAX_RECORDING_MS, RECORDING_WARNING_MS};
 
 pub use ports::*;
 
+/// Error code for recordings cut short by a lost microphone.
+pub const MIC_DISCONNECTED: &str = "MIC_DISCONNECTED";
+
 #[derive(Clone)]
 pub struct Config {
     pub journal_dir: PathBuf,
@@ -293,6 +296,38 @@ impl Controller {
             });
         } else {
             let _ = std::fs::remove_file(&a.journal_path);
+        }
+    }
+
+    /// The microphone failed. Before any audio arrived it couldn't be opened;
+    /// later it was unplugged or lost. Speech so far is kept as a failed
+    /// `MIC_DISCONNECTED` record (spec 4.1: audio is preserved when the mic
+    /// disconnects); a recording with no speech yet is dropped.
+    pub fn mic_failed(&mut self, reason: &str) {
+        let Some(mut a) = self.active.take() else { return };
+        finish_journal(&mut a);
+        self.ui.bar(BarState::Hidden);
+        self.ui.sound(Sound::Error);
+        if a.samples == 0 {
+            drop_recording(a);
+            self.ui.notify(Notice::MicUnavailable {
+                reason: reason.to_owned(),
+            });
+            return;
+        }
+        let heard = a.vad.heard_speech(self.cfg.min_speech_frames);
+        let entry = base_entry(&a);
+        let id = a.id.clone();
+        if heard {
+            cancel_link(a.link);
+            self.history.insert(NewEntry {
+                error_code: Some(MIC_DISCONNECTED.into()),
+                ..entry
+            });
+            self.ui.notify(Notice::MicDisconnected { record_id: Some(id) });
+        } else {
+            drop_recording(a);
+            self.ui.notify(Notice::MicDisconnected { record_id: None });
         }
     }
 

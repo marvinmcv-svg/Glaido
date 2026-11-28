@@ -69,6 +69,8 @@ export function failureMessage(code: string | null): string {
       return "This week's free words are used up. The recording is saved for later.";
     case "RECORDING_TOO_LONG":
       return "This recording is longer than the server accepts. The audio is saved.";
+    case "MIC_DISCONNECTED":
+      return "The microphone disconnected while you were speaking. What you said so far is saved.";
     case "AUDIO_UNREADABLE":
       return "The saved audio for this recording could not be read.";
     default:
@@ -93,7 +95,9 @@ export type Notice =
   | { kind: "paste_failed"; recordId: string }
   | { kind: "recording_limit_near" }
   | { kind: "mic_silent" }
-  | { kind: "retry_succeeded"; recordId: string };
+  | { kind: "retry_succeeded"; recordId: string }
+  | { kind: "mic_disconnected"; recordId: string | null }
+  | { kind: "mic_unavailable"; reason: string };
 
 export type Toast = {
   title: string;
@@ -134,6 +138,23 @@ export function toastFor(n: Notice): Toast {
       return {
         title: "We didn't hear anything",
         body: "Check that the right microphone is selected and not muted.",
+      };
+    case "mic_disconnected":
+      return n.recordId
+        ? {
+            title: "Microphone disconnected",
+            body: "What you said so far is saved. Reconnect the mic, then press Retry.",
+            recordId: n.recordId,
+            action: "retry",
+          }
+        : {
+            title: "Microphone disconnected",
+            body: "Nothing was recorded. Check the connection or pick another mic in Settings.",
+          };
+    case "mic_unavailable":
+      return {
+        title: "Couldn't open the microphone",
+        body: "Check that a mic is connected and that Vocalis may use it, then try again.",
       };
     case "retry_succeeded":
       return { title: "Transcribed", body: "The text is now in History.", recordId: n.recordId };

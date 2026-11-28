@@ -172,7 +172,7 @@ These are covered by automated tests on Linux; repeat them once per OS.
 - [ ] Set the picker back to **System default**, then change the system's default input device in the OS sound settings. Dictate. Expected: the new system default is used without restarting Vocalis.
 - [ ] Choose the USB/wired mic explicitly, quit Vocalis, unplug it, reopen and dictate. Expected: Vocalis falls back to the system default; the dictation works.
 - [ ] Plug it back in. Expected: the next dictation uses it again.
-- [ ] **Unplug mid-recording.** Start a hands-free dictation on the USB mic, speak, unplug it. Expected: the dictation stops without a crash, and the audio recorded so far is in Activity with Retry. Note the wording shown on the entry.
+- [ ] **Unplug mid-recording.** Start a hands-free dictation on the USB mic, speak, unplug it. Expected: the dictation stops without a crash, and a "Microphone disconnected" notice appears, and the audio recorded so far is in Activity as a failed entry ("The microphone disconnected while you were speaking…") with Retry. Unplugging before saying anything shows the notice and keeps nothing.
 - [ ] Bluetooth (if available): pick the Bluetooth headset and dictate. Note the start delay and the quality compared with the wired mic.
 
 ## 11. Sign-off

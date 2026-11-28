@@ -122,6 +122,8 @@ impl Ui for FakeUi {
             Notice::RecordingLimitNear => "limit-near".into(),
             Notice::MicSilent => "mic-silent".into(),
             Notice::RetrySucceeded { .. } => "retry-ok".into(),
+            Notice::MicDisconnected { record_id } => format!("mic-lost {}", record_id.is_some()),
+            Notice::MicUnavailable { .. } => "mic-unavailable".into(),
         };
         self.events.lock().unwrap().push(format!("notify {tag}"));
     }
@@ -517,4 +519,47 @@ async fn slow_open_buffers_audio_until_connected() {
     r.c.stop();
     r.c.settle().await;
     assert_eq!(r.gw.received.lock().unwrap().len(), 16_000);
+}
+
+#[tokio::test]
+async fn mic_lost_mid_speech_keeps_a_failed_record() {
+    let mut r = rig(FakeGateway::ok("x"));
+    record(&mut r, speech(800)).await;
+    r.c.mic_failed("microphone disconnected");
+    r.c.settle().await;
+    let rec = r.history.inserted.lock().unwrap()[0].clone();
+    assert_eq!(rec.error_code.as_deref(), Some(MIC_DISCONNECTED));
+    let back = journal::read(Path::new(rec.audio_path.as_deref().unwrap()), &[3u8; 32]).unwrap();
+    assert_eq!(
+        back.samples.len(),
+        800 * 16,
+        "everything said before the unplug is kept"
+    );
+    let ev = r.ui.events();
+    assert!(ev.contains(&"notify mic-lost true".to_owned()));
+    assert!(ev.contains(&"sound Error".to_owned()));
+    assert!(!ev.iter().any(|e| e.starts_with("paste")));
+    assert!(!r.c.is_recording());
+}
+
+#[tokio::test]
+async fn mic_lost_before_speech_drops_quietly_with_a_notice() {
+    let mut r = rig(FakeGateway::ok("x"));
+    record(&mut r, silence(300)).await;
+    r.c.mic_failed("microphone disconnected");
+    r.c.settle().await;
+    assert!(r.history.inserted.lock().unwrap().is_empty());
+    assert_eq!(journals(&r.dir), 0);
+    assert!(r.ui.events().contains(&"notify mic-lost false".to_owned()));
+}
+
+#[tokio::test]
+async fn mic_that_never_opened_says_so() {
+    let mut r = rig(FakeGateway::ok("x"));
+    r.c.start(StartSettings::default(), 1);
+    r.c.mic_failed("no microphone is available");
+    r.c.settle().await;
+    assert!(r.history.inserted.lock().unwrap().is_empty());
+    assert_eq!(journals(&r.dir), 0);
+    assert!(r.ui.events().contains(&"notify mic-unavailable".to_owned()));
 }

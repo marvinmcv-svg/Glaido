@@ -159,10 +159,9 @@ Some setups don't have one running: minimal window managers, some remote or head
 
 This is weaker than a keychain: anything running as your user, or anyone who gets a copy of your home folder, could read those files.
 
-**Switching to a keychain later has a catch today.** Once a keychain is available, Vocalis looks for its keys there only. It doesn't yet move the keys over from the files, so it creates new ones: your existing History and saved recordings can no longer be opened, and you'll need to sign in again. Moving the keys across automatically is on our list. Until then:
+**Switching to a keychain later is safe.** The next time Vocalis starts with a keychain available, it moves the keys and your sign-in from those files into the keychain, checks they read back correctly, and then deletes the files. Your History, saved recordings and sign-in carry over.
 
-- If you can, set up a keychain **before** you start using Vocalis. Install and start a Secret Service provider, for example `gnome-keyring` (with its secrets component) or KWallet, make sure it's unlocked when you log in, then start Vocalis.
-- If you've already been using the file fallback and your History matters to you, keep your current setup for now. Copy anything you need out of History before you switch.
+**If your keychain is locked.** Once your keys live in the keychain, Vocalis won't create new ones just because the keychain can't be opened (for example, it hasn't been unlocked yet after login). It waits a few seconds, and if the keychain is still locked, dictation stays off and Home shows a message. Unlock your keychain, then restart Vocalis.
 
 Don't delete the files in `keys/` by hand: without them, your existing History and saved recordings can't be decrypted.
 

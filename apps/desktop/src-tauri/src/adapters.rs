@@ -108,6 +108,8 @@ impl<R: Runtime> Ui for TauriUi<R> {
             Notice::RecordingLimitNear => json!({ "kind": "recording_limit_near" }),
             Notice::MicSilent => json!({ "kind": "mic_silent" }),
             Notice::RetrySucceeded { record_id } => json!({ "kind": "retry_succeeded", "recordId": record_id }),
+            Notice::MicDisconnected { record_id } => json!({ "kind": "mic_disconnected", "recordId": record_id }),
+            Notice::MicUnavailable { reason } => json!({ "kind": "mic_unavailable", "reason": reason }),
         };
         let _ = self.app.emit_to("main", "notice", payload);
     }

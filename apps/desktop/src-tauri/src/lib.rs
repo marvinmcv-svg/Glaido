@@ -137,6 +137,14 @@ fn forward_deep_links<R: Runtime>(app: &AppHandle<R>, urls: Vec<String>) {
     }
 }
 
+/// Why the dictation engine didn't start, for the main window to show.
+struct EngineFailure(String);
+
+#[tauri::command]
+fn engine_error<R: Runtime>(app: AppHandle<R>) -> Option<String> {
+    app.try_state::<EngineFailure>().map(|f| f.0.clone())
+}
+
 #[tauri::command]
 fn auth_status(auth: tauri::State<'_, Arc<auth::Auth>>) -> Option<auth::Account> {
     auth.account()
@@ -197,6 +205,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             app_info,
             toggle_bar,
+            engine_error,
             auth_status,
             auth_sign_in,
             auth_sign_out,
@@ -262,6 +271,7 @@ pub fn run() {
             tray.build(app)?;
             if let Err(e) = start_engine(app.handle(), auth, shared) {
                 tracing::error!(target: "engine", error = %e, "dictation engine did not start");
+                app.manage(EngineFailure(e));
             }
             Ok(())
         })

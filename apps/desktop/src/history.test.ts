@@ -53,7 +53,15 @@ describe("history helpers", () => {
   });
 
   it("has a message for every known failure code and a fallback", () => {
-    for (const code of ["CANCELLED", "INTERRUPTED", "NETWORK", "QUOTA_EXCEEDED", null, "???"]) {
+    for (const code of [
+      "CANCELLED",
+      "INTERRUPTED",
+      "NETWORK",
+      "QUOTA_EXCEEDED",
+      "MIC_DISCONNECTED",
+      null,
+      "???",
+    ]) {
       expect(failureMessage(code)).toMatch(/\S/);
     }
     expect(failureMessage("INTERRUPTED")).not.toBe(failureMessage(null));
@@ -75,5 +83,8 @@ describe("history helpers", () => {
     ).toBeUndefined();
     expect(toastFor({ kind: "nowhere_to_paste", recordId: "r" }).action).toBe("copy");
     expect(toastFor({ kind: "mic_silent" }).recordId).toBeUndefined();
+    expect(toastFor({ kind: "mic_disconnected", recordId: "r" }).action).toBe("retry");
+    expect(toastFor({ kind: "mic_disconnected", recordId: null }).action).toBeUndefined();
+    expect(toastFor({ kind: "mic_unavailable", reason: "x" }).title).toMatch(/microphone/);
   });
 });
