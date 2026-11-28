@@ -197,7 +197,10 @@ mod tests {
     fn dictionary_entry_shapes() {
         assert_eq!(dictionary_entry(None, None), None);
         assert_eq!(dictionary_entry(Some("cafe".into()), Some(" ".into())), None);
-        assert_eq!(dictionary_entry(None, Some("Vocalis".into())), Some(Entry::vocab("Vocalis")));
+        assert_eq!(
+            dictionary_entry(None, Some("Vocalis".into())),
+            Some(Entry::vocab("Vocalis"))
+        );
         assert_eq!(
             dictionary_entry(Some(" vocal is ".into()), Some("Vocalis".into())),
             Some(Entry::correction("vocal is", "Vocalis"))

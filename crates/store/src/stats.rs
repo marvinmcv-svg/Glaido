@@ -177,7 +177,12 @@ impl Store {
              GROUP BY d"
         ))?;
         let rows = stmt.query_map(params![off, first * DAY_MS - off, (today + 1) * DAY_MS - off], |r| {
-            Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?, r.get::<_, i64>(2)?, r.get::<_, i64>(3)?))
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, i64>(1)?,
+                r.get::<_, i64>(2)?,
+                r.get::<_, i64>(3)?,
+            ))
         })?;
         for row in rows {
             let (d, words, dictations, commands) = row?;
@@ -271,7 +276,10 @@ mod tests {
         other(&s, T0, RecordType::Dictation, RecordStatus::Running, 500);
         other(&s, T0, RecordType::Command, RecordStatus::Ok, 500);
         let h = s.home_stats(T0, 0).unwrap();
-        assert_eq!((h.total_words, h.dictations, h.time_saved_ms, h.average_wpm), (0, 0, 0, 0));
+        assert_eq!(
+            (h.total_words, h.dictations, h.time_saved_ms, h.average_wpm),
+            (0, 0, 0, 0)
+        );
         // The successful command still counts as activity.
         assert_eq!((h.streak_days, h.active_today, h.active_days), (1, true, 1));
         let i = s.insights(1, T0, 0).unwrap();
