@@ -1,0 +1,54 @@
+# Vocalis latency corpus (see README.md). Format: id<TAB>kind<TAB>text; kind is short or long.
+# short: one sentence, at most 15 words (budget: stop -> pasted p50 < 1.0 s, p95 < 2.0 s).
+# long: about 150 words, roughly 60 s of speech (budget: stop -> pasted p50 < 3.0 s).
+# Lines starting with # are comments. Text is UTF-8 and never contains a tab.
+u01	short	Hey, running about ten minutes late, start without me.
+u02	short	Can you send me the slides from this morning's meeting?
+u03	short	Thanks so much, that fixed it on my end too.
+u04	short	Remind me to call the dentist tomorrow at 9:30 a.m.
+u05	short	TODO: handle the case where the user list is empty.
+u06	short	Let's move the review to Thursday afternoon if that works for everyone.
+u07	short	Run the migration script, then restart the gateway service and check the logs.
+u08	short	The invoice total comes to $1,284.50, due on March 3rd.
+u09	short	Hi Oluwaseun, could you look over the contract before Friday?
+u10	long	Hi team, I wanted to give everyone a quick update on where we are with the billing project before the long weekend. The good news is that the new invoice screen is finished, and the first round of testing went better than expected. We found two small bugs, one with rounding on foreign currencies and one with the date picker on older laptops, and both are already fixed. The bigger open question is the tax report. Accounting asked for a monthly export instead of a quarterly one, which means we need another week of work on the data side. I'd rather take that week than ship something they can't use. So the plan is this: we freeze the interface on Tuesday, Amara finishes the export by the following Friday, and we aim for a release on the 21st. If anyone sees a problem with that timeline, please tell me today rather than next week. Thanks, and enjoy the break.
+u11	short	Note to self: buy milk, eggs, coffee filters, and batteries.
+u12	short	I think the second option is cleaner, but let's ask Priya first.
+u13	short	Please don't merge this until the tests pass on all three platforms.
+u14	short	Lunch at noon? I'm thinking that Thai place on Fifth Street.
+u15	short	Fix: retry the upload up to three times with exponential backoff.
+u16	short	Dear Ms. Nakamura, thank you for your quick reply yesterday.
+u17	short	The meeting with Joaquín and Siobhán is booked for 2 p.m.
+u18	short	Quick question: is the staging server down, or is it just me?
+u19	short	Flight lands at 6:45, so I'll head straight to the hotel.
+u20	long	Notes from this morning's planning meeting. Attendees were Kenji, Fatima, Lukas, and me. First topic was hiring. We agreed to open one more backend role and one designer role, and Fatima will write both job descriptions by Wednesday. Second topic was the office move. The new space on Harbor Road is available from the first of next month, but the internet installation might take two extra weeks, so most people will keep working from home until then. Third topic was the customer survey. About sixty percent of the people who answered said search is the feature they use most, and the most common complaint was that results feel slow on large accounts. Lukas thinks an index on the archive table would help a lot, and he'll try it on a copy of production data. Action items: Fatima on job posts, Lukas on search speed, Kenji on the moving checklist. Next meeting is Monday at ten.
+u21	short	This function returns null when the cache entry has expired.
+u22	short	Happy birthday, Dmitri! Hope you have a wonderful day.
+u23	short	We shipped version 2.4 last night; no major issues so far.
+u24	short	List every file changed in the last commit, sorted by size.
+u25	short	Could we push the deadline back a week? The design isn't final.
+u26	short	Grocery spending this month was about 420 dollars, a little over plan.
+u27	short	Great work today, everyone. Let's keep this momentum going.
+u28	short	Ask Mei-Lin whether the Berlin office needs extra monitors.
+u29	short	Warning: this endpoint is deprecated and will be removed in June.
+u30	long	Okay, a few thoughts on this pull request before it goes in. Overall the structure is good, and splitting the parser into smaller functions makes it much easier to follow. My main concern is error handling. Right now, if the config file is missing a field, the code quietly falls back to a default, and the user never finds out. I'd rather we return an error that names the missing field and the line number, so people can fix their file instead of guessing. Second, the retry loop in the network client doesn't have an upper limit. If the server is down for an hour, we'll keep trying forever and fill the log. Let's cap it at five attempts with a growing delay between them. Third, small thing, a couple of the test names describe how the code works rather than what it should do, so they'll be confusing when they fail. None of this is blocking on its own, but I'd like the first two fixed before we merge.
+u31	short	I'll be out of office from the 12th through the 19th.
+u32	short	The kids have soccer at four, and piano right after.
+u33	short	Please review the pull request when you get a chance.
+u34	short	Interesting idea, although I'm not sure the numbers add up yet.
+u35	short	Schedule a follow-up with Dr. Okonkwo for early next month.
+u36	short	Set the timeout to thirty seconds and log every failed request.
+u37	short	Yes, Saturday works. Should I bring anything?
+u38	short	Call Raghav back about the apartment lease; it expires in August.
+u39	short	The new onboarding flow cut sign-up time roughly in half.
+u40	long	Hey Ingrid, it was so good to hear from you last week, and yes, we'd love to visit in the spring. Here's what I'm thinking so far. We could fly into Oslo on a Thursday evening, stay with you through the weekend, and then take the train west on Monday. I've always wanted to see the fjords, and Tomás keeps talking about a hike he read about that ends at a waterfall. We'd probably spend three nights near Bergen and then come back through the mountains. Does that sound reasonable, or is it too much travel for one week? Also, please tell me honestly if hosting us for three nights is a lot. We can absolutely book a small hotel nearby instead. The kids are excited and have already started learning a few words of Norwegian, although their pronunciation is pretty funny. Let me know what dates work best for you, and I'll start looking at flights this weekend. Big hugs to everyone.
+u41	short	Add a unit test for the date parser around leap years.
+u42	short	Sorry for the confusion earlier; the correct room is 4B.
+u43	short	Our quarterly revenue grew 18 percent compared to last year.
+u44	short	Can someone water the plants while I'm away next week?
+u45	short	Rename the variable to something clearer, like retry count.
+u46	short	Just landed in Lisbon. Battery's almost dead, will text later.
+u47	short	Idea: let users export their notes as plain text or PDF.
+u48	short	Tell François the package arrived, but the box was damaged.
+u49	short	Okay, sounds good. Talk soon!
+u50	long	Some ideas I want to remember from my walk this afternoon. The garden needs a better watering plan before summer. Last year the tomatoes did great in June and then half of them split during the heat in July, probably because I watered too much and too late. This year I want to try a simple drip line on a timer, early in the morning, and keep notes every week on what works. Second, I've been meaning to start the reading group again. Maybe once a month, on a Sunday, alternating between fiction and something practical, like history or cooking. I should ask Nadia and Hamid if they're still interested; they were the most regular last time. Third, money. I keep saying I'll put aside a little every month for the new roof, and I keep not doing it. An automatic transfer of two hundred dollars right after payday is probably the only thing that will actually work. Okay, that's enough planning for one day. Time to make dinner.

@@ -16,3 +16,5 @@ supabase/.branches/
 test-results/
 playwright-report/
 *.tsbuildinfo
+e2e/latency/audio/
+e2e/latency/.piper/
