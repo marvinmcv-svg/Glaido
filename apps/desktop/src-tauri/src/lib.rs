@@ -4,7 +4,6 @@
 mod adapters;
 mod auth;
 mod engine;
-mod gateway_ws;
 mod history_cmds;
 mod secrets;
 mod settings;

@@ -1,0 +1,10 @@
+# Small sample for validating the harness against the mock provider
+# (e2e/latency/run_mock.sh). The real scripted set is utterances.tsv.
+# id	kind	text
+s01	short	Can we move the design review to Thursday afternoon?
+s02	short	Thanks, that works for me.
+s03	short	Please send the invoice to the accounting team before Friday.
+s04	short	I'll be about ten minutes late to the call.
+s05	short	Let's ship the fix today and write the tests tomorrow.
+s06	short	Remind me to book the flights tonight.
+l01	long	This is a long dictation used to check the sixty second budget. It goes on for about one hundred and fifty words, which at a natural speaking pace of two and a half words per second is roughly one minute of audio. The content itself does not matter when the speech provider is a mock, because the harness only measures how long the gateway takes from the moment the client says stop to the moment the final result arrives. With a real provider the same sentence set is recorded as speech instead, and the transcript is compared with this text to estimate the word error rate. Long dictations stress the upload, the transcription and the cleanup model more than short ones do, which is why the budget for them is three seconds rather than one. That is still fast enough that the text feels instant after a minute of talking.

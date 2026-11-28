@@ -6244,6 +6244,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "vocalis-client"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "futures-util",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite 0.27.0",
+ "vocalis-session",
+]
+
+[[package]]
 name = "vocalis-context"
 version = "0.1.0"
 dependencies = [
@@ -6272,9 +6284,7 @@ dependencies = [
 name = "vocalis-desktop"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "base64 0.22.1",
- "futures-util",
  "keyring",
  "rand 0.8.8",
  "reqwest 0.12.28",
@@ -6289,10 +6299,10 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.21",
  "tokio",
- "tokio-tungstenite 0.27.0",
  "tracing",
  "tracing-subscriber",
  "vocalis-audio",
+ "vocalis-client",
  "vocalis-context",
  "vocalis-core",
  "vocalis-inject",
@@ -6346,6 +6356,19 @@ dependencies = [
  "serde",
  "thiserror 2.0.21",
  "vocalis-core",
+]
+
+[[package]]
+name = "vocalis-latency"
+version = "0.1.0"
+dependencies = [
+ "jsonwebtoken",
+ "serde",
+ "serde_json",
+ "tokio",
+ "vocalis-audio",
+ "vocalis-client",
+ "vocalis-session",
 ]
 
 [[package]]

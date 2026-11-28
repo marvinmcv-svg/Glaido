@@ -1,4 +1,6 @@
 //! WebSocket client for the gateway's `/v1/dictate` (implements `vocalis_session::Gateway`).
+//! Shared by the desktop app and the latency harness, so the harness measures
+//! exactly the code users run.
 
 use std::sync::Arc;
 use std::time::Duration;

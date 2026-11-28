@@ -21,7 +21,7 @@ use crate::settings::Settings;
 
 pub type SharedSettings = Arc<std::sync::RwLock<Settings>>;
 
-use crate::gateway_ws::{TokenSource, WsGateway};
+use vocalis_client::{TokenSource, WsGateway};
 
 pub struct EngineConfig {
     pub data_dir: PathBuf,
