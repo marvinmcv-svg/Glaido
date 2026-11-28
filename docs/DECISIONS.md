@@ -70,3 +70,14 @@ Format: context → decision → consequences. Status is one of *proposed*, *acc
 4. The refresh token is stored in the OS keychain (user-only file fallback, as for the encryption keys). The app refreshes 2 minutes before expiry; a 400/401 from the refresh endpoint signs this device out. Sign out revokes only this device's session (`scope=local`).
 **Why not OAuth straight from the app?** It would skip email/password users and anyone already signed in on the web. **Why not hand over the browser's tokens?** Refresh-token rotation would sign one of the two out, and a deep link can be observed by other local apps; with PKCE an intercepted code is useless.
 **Needs.** `SUPABASE_SERVICE_ROLE_KEY` in the web app's server environment (never `NEXT_PUBLIC_`). `VOCALIS_DEV_TOKEN` still overrides sign-in for development and E2E.
+
+## ADR-0016: Importers and dictionary suggestions — accepted (2026-11-28)
+(Number chosen to stay clear of parallel P2 work; renumber on merge if needed.)
+**Context.** P2 ships importers (spec 4.5.4) and auto-suggestions on every OS (spec 4.5.1).
+**Decisions.**
+1. **`crates/import` is pure.** It takes bytes and the current library and returns an `ImportReport` (to add / skipped with a reason / converted). The desktop reads the file and writes through `Store::dictionary_add` / `snippet_add`, so core validation and duplicate rules apply exactly once. Preview and apply both re-parse, so apply always de-duplicates against the library as it is then.
+2. **Libraries:** `csv` (MIT/Unlicense), `yaml-rust2` (MIT/Apache-2.0; `serde_yaml` is unmaintained) and `zip` (MIT, `deflate` only). Zip reads are capped (20 MB unpacked, 10,000 items) regardless of header sizes.
+3. **Placeholders map only where the meaning matches** (clipboard, current date/time; cursor markers are dropped). Anything else skips the snippet with the reason, rather than importing a snippet with a hole in it. Unknown brace or `%` text is kept literally so code and "50% off" survive.
+4. **Formats we can't see are not guessed** (ledger IMP-05, IMP-06): Wispr Flow's documented import layout and a conservative CSV for Superwhisper; no private app storage is read.
+5. **Suggestions** (`vocalis_core::suggest`): word-level LCS diff of pasted vs. edited text; a fix is a replacement inside a changed run of at most three words, spelled within 40% edit distance (or case-only), target ≥ 4 chars; edits that keep under half the pasted words are rewrites and ignored. Pairs are keyed case-insensitively; 2 fixes within 30 days → suggestion; dismissals are permanent. State stores only the word pair and timestamps, so it is a plain JSON file (`suggestions.json`).
+6. **Field read-back** is a `FieldTextReader` trait in `crates/context` with a stub on every OS for now (AX / UIA / AT-SPI later); History edits feed suggestions meanwhile (documented in `docs/troubleshooting.md`).

@@ -14,6 +14,8 @@ If none of this helps, use **Report a bug** from the account menu and describe w
 - [Linux: pasting into a terminal](#linux-pasting-into-a-terminal)
 - [Linux: no keychain](#linux-no-keychain)
 - [Where Vocalis keeps its files](#where-vocalis-keeps-its-files)
+- [Dictionary suggestions](#dictionary-suggestions)
+- [Importing from other apps](#importing-from-other-apps)
 
 ---
 
@@ -180,3 +182,38 @@ Everything Vocalis saves stays on your computer, encrypted: your History, your s
 | Linux   | `~/.local/share/app.vocalis.desktop`                |
 
 Inside: `history.db` (your History), `recordings/` (audio, encrypted), `settings.json` (your choices, such as shortcuts, languages and microphone). If `settings.json` gets damaged, Vocalis sets it aside and starts with defaults rather than refusing to start.
+
+`suggestions.json` holds dictionary suggestions. It is not encrypted because it holds only pairs of words (the spelling you corrected and your spelling) and when you corrected them, never a sentence or anything else you dictated. Deleting it just forgets the suggestions.
+
+## Dictionary suggestions
+
+When you fix the same word by hand twice within 30 days (for example "kubernets" to "Kubernetes"), Vocalis offers to add the correction to your dictionary. Only words of four or more letters count, a word already in your dictionary is never suggested, and "Don't suggest" stops that suggestion for good.
+
+To notice a fix, Vocalis has to see what you changed. Where that works today:
+
+| Where you fix the word                        | macOS   | Windows | Linux (X11 and Wayland) |
+| --------------------------------------------- | ------- | ------- | ----------------------- |
+| Editing a dictation in Vocalis's own History  | Yes     | Yes     | Yes                     |
+| In the app you dictated into, after the paste | Not yet | Not yet | Not yet                 |
+
+Reading another app's text field needs the accessibility interfaces: the Accessibility permission on macOS, UI Automation on Windows and the AT-SPI accessibility bus on Linux. X11 itself has no way to read another app's text field, and Wayland blocks it by design, so on Linux this will only work in apps that support AT-SPI (most GTK and Qt apps, and browsers with accessibility turned on). Password fields will never be read.
+
+## Importing from other apps
+
+Dictionary and snippets can be imported from a file you export from another app. Vocalis shows what it will add and what it will leave out, and saves nothing until you press Import. Words already in your dictionary and snippets with a trigger you already use are left out.
+
+| App          | File to pick                                                                 |
+| ------------ | ---------------------------------------------------------------------------- |
+| Wispr Flow   | The dictionary `.csv` (one word, or `misspelling,correction`, per line) or the snippets `.json` you prepared for its bulk import |
+| Superwhisper | A `.csv` with one word, or `original,replacement`, per line                  |
+| Raycast      | The `.json` from Export Snippets                                             |
+| Alfred       | A `.alfredsnippets` collection                                               |
+| Espanso      | A match file such as `match/base.yml`                                        |
+| TextExpander | A group exported as `.csv`                                                   |
+
+Some things don't carry over:
+
+- **Placeholders.** Clipboard and date placeholders become Vocalis's `{clipboard}` and `{datetime}`. A custom date format is replaced by Vocalis's own date and time. Cursor markers are removed. Snippets that rely on anything else (fill-in fields, forms, scripts, shell commands, nested snippets, date arithmetic, earlier clipboard items) are left out and listed with the reason.
+- **Limits.** Dictionary words and misspellings can be up to 50 characters, triggers up to 200 and snippet content up to 10,000. Longer items are left out.
+- **Rich text and images** are not imported; Markdown is imported as plain text.
+- Wispr Flow has no export file that we know of, and Superwhisper doesn't publish the layout of its files, so for those two Vocalis reads simple CSV files in the layout above.

@@ -10,6 +10,7 @@ pub mod formatting;
 pub mod gesture;
 pub mod product;
 pub mod snippets;
+pub mod suggest;
 pub mod tags;
 pub mod text;
 pub mod wake;
