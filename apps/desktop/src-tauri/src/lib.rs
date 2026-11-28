@@ -6,6 +6,8 @@ mod auth;
 mod engine;
 mod formatting_cmds;
 mod history_cmds;
+mod import_cmds;
+mod personal_cmds;
 mod secrets;
 mod settings;
 mod setup_cmds;
@@ -217,6 +219,15 @@ pub fn run() {
             history_cmds::history_delete,
             history_cmds::history_audio,
             history_cmds::history_copy,
+            personal_cmds::dictionary_list,
+            personal_cmds::dictionary_add,
+            personal_cmds::dictionary_update,
+            personal_cmds::dictionary_delete,
+            personal_cmds::dictionary_delete_all,
+            personal_cmds::snippets_list,
+            personal_cmds::snippets_add,
+            personal_cmds::snippets_update,
+            personal_cmds::snippets_delete,
             setup_cmds::settings_get,
             setup_cmds::settings_set_languages,
             setup_cmds::settings_set_microphone,
@@ -237,6 +248,13 @@ pub fn run() {
             formatting_cmds::formatting_presets,
             formatting_cmds::apps_most_used,
             formatting_cmds::apps_installed,
+            import_cmds::import_formats,
+            import_cmds::import_preview,
+            import_cmds::import_apply,
+            import_cmds::suggestion_list,
+            import_cmds::suggestion_observe,
+            import_cmds::suggestion_accept,
+            import_cmds::suggestion_dismiss,
         ])
         .setup(|app| {
             use tauri_plugin_deep_link::DeepLinkExt;

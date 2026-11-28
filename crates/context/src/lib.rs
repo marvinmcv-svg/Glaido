@@ -10,6 +10,7 @@
 //!
 //! Browser URLs and selected text (AX / UIA / AT-SPI) come in P3.
 
+pub mod field_text;
 mod kind;
 #[cfg(feature = "os")]
 pub mod os;

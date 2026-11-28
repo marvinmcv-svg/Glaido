@@ -108,7 +108,7 @@ pub enum Expect {
         finished: Option<String>,
         /// Live checks; cases without them have no live part.
         #[serde(default)]
-        output: Option<OutputChecks>,
+        output: Option<Box<OutputChecks>>,
     },
 }
 

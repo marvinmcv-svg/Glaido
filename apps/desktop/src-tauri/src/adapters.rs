@@ -8,7 +8,7 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 use vocalis_context::{plan_paste, Desktop, FocusedField, Frontmost, PastePlan};
 use vocalis_core::formatting::FieldKind;
 use vocalis_inject::os::{OsClipboard, OsKeystrokes};
-use vocalis_inject::{combo_for, Os, PasteOptions};
+use vocalis_inject::{combo_for, ClipContent, Clipboard, Os, PasteOptions};
 use vocalis_session::{BarState, History, NewEntry, Notice, PasteOutcome, Sound, Ui};
 use vocalis_store::{NewRecord, RecordStatus, RecordType, Store};
 
@@ -69,6 +69,22 @@ impl<R: Runtime> TauriUi<R> {
         }
         let clip = guard.as_mut().expect("clipboard initialized");
         vocalis_inject::copy(text, clip).map_err(|e| e.to_string())
+    }
+
+    /// The clipboard's plain text, for the `{clipboard}` tag. `None` when it is
+    /// empty, holds something else (an image), or can't be opened. Uses the
+    /// shared handle, so reading never disturbs a clipboard we restored.
+    pub fn read_text(&self) -> Option<String> {
+        let mut guard = self.clipboard.lock().expect("clipboard lock");
+        if guard.is_none() {
+            *guard = OsClipboard::new()
+                .map_err(|e| tracing::warn!(target: "paste", error = %e, "clipboard unavailable"))
+                .ok();
+        }
+        match guard.as_mut()?.get() {
+            Ok(Some(ClipContent::Text(t))) => Some(t),
+            _ => None,
+        }
     }
 }
 

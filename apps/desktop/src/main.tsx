@@ -7,8 +7,10 @@ import { AccountRow } from "./Account";
 import { Activity } from "./Activity";
 import { Formatting } from "./Formatting";
 import "./app.css";
+import { Dictionary } from "./Dictionary";
 import { currentPlatform, DEFAULT_HOTKEYS } from "./platform";
 import { chordKeys, useSettings } from "./settings";
+import { Snippets } from "./Snippets";
 import { Toasts } from "./Toasts";
 import { Wizard } from "./Wizard";
 
@@ -106,6 +108,10 @@ function App() {
             </Card>
             <Activity />
           </>
+        ) : page === "Dictionary" ? (
+          <Dictionary />
+        ) : page === "Snippets" ? (
+          <Snippets />
         ) : page === "Settings" ? (
           <Card>
             <AccountRow />

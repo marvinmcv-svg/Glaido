@@ -52,6 +52,9 @@ pub(crate) enum Event {
 /// Puts text on the clipboard.
 pub type Copier = Arc<dyn Fn(&str) -> Result<(), String> + Send + Sync>;
 
+/// Reads the clipboard's plain text (the `{clipboard}` tag).
+pub type ClipboardReader = Arc<dyn Fn() -> Option<String> + Send + Sync>;
+
 /// Where the hotkey picker's result goes (`None` = cancelled).
 pub(crate) type RecordReply = tokio::sync::oneshot::Sender<Option<Result<Chord, String>>>;
 
@@ -180,6 +183,8 @@ pub fn start<R: Runtime>(app: AppHandle<R>, cfg: EngineConfig) -> Result<EngineH
         })
         .map_err(|e| e.to_string())?;
 
+    let reader_ui = ui.clone();
+    let read_clipboard: ClipboardReader = Arc::new(move || reader_ui.read_text());
     let handle = EngineHandle {
         history: history.clone(),
         audio_key,
@@ -198,6 +203,7 @@ pub fn start<R: Runtime>(app: AppHandle<R>, cfg: EngineConfig) -> Result<EngineH
         epoch,
         cfg.dev_wav,
         cfg.dev_lock_file,
+        read_clipboard,
     ));
     tracing::info!(target: "engine", "dictation engine ready");
     Ok(handle)
@@ -216,11 +222,20 @@ async fn run(
     epoch: Instant,
     dev_wav: Option<PathBuf>,
     dev_lock_file: Option<PathBuf>,
+    read_clipboard: ClipboardReader,
 ) {
-    let start_settings = || StartSettings {
-        languages: settings.read().expect("settings lock").languages.clone(),
-        rules: history.lock().rule_set(now_ms()).ok(),
-        ..Default::default()
+    // Dictionary, snippets and tag values (spec 4.5.1, 4.5.2) are read fresh
+    // for every start and retry; the clipboard only when a tag uses it.
+    let start_settings = || {
+        let personal = tokio::task::block_in_place(|| crate::personal_cmds::load(&history.lock(), || read_clipboard()));
+        StartSettings {
+            languages: settings.read().expect("settings lock").languages.clone(),
+            dictionary: personal.dictionary,
+            snippets: personal.snippets,
+            tags: personal.tags,
+            rules: history.lock().rule_set(now_ms()).ok(),
+            ..Default::default()
+        }
     };
     let microphone = || settings.read().expect("settings lock").microphone.clone();
     let mut capture: Option<Arc<AtomicBool>> = None;

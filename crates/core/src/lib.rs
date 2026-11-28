@@ -12,6 +12,7 @@ pub mod gesture;
 pub mod presets;
 pub mod product;
 pub mod snippets;
+pub mod suggest;
 pub mod tags;
 pub mod text;
 pub mod wake;
