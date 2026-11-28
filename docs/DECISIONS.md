@@ -71,6 +71,18 @@ Format: context → decision → consequences. Status is one of *proposed*, *acc
 **Why not OAuth straight from the app?** It would skip email/password users and anyone already signed in on the web. **Why not hand over the browser's tokens?** Refresh-token rotation would sign one of the two out, and a deep link can be observed by other local apps; with PKCE an intercepted code is useless.
 **Needs.** `SUPABASE_SERVICE_ROLE_KEY` in the web app's server environment (never `NEXT_PUBLIC_`). `VOCALIS_DEV_TOKEN` still overrides sign-in for development and E2E.
 
+## ADR-0013: Home stats, Insights and record reports — accepted (2026-11-28)
+**Context.** Spec 4.6 asks for Time saved, Dictation speed and a Day streak on Home, an Insights page, and a thumbs-down report that shares one record's text with support. The spec gives no formulas, and no support endpoint exists yet.
+**Decision.**
+1. **Computed from `records`, no schema change.** Only `ok` records count; failed and running records never do. Words and speed come from dictations; commands are counted separately (Insights) and count as activity for streaks.
+2. **Time saved** = Σ over successful dictations of `max(0, words × 1.5 s − duration)`, where 1.5 s/word is a **40 wpm** typing baseline (a common average for adults typing prose). Clamping per dictation means a slow dictation never subtracts time. Home rounds to minutes ("123h 46m") and adds a comparison: coffee break, lunch break, film, afternoon, work day (8 h), work days, work week (40 h), work weeks, months of work days.
+3. **Speed** = words-weighted mean of each dictation's stored WPM (`Σ words×wpm / Σ words`), ignoring dictations with no WPM (e.g. recovered audio). "×N faster than typing" divides by the same 40 wpm.
+4. **Day streak** uses local days at the window's current fixed UTC offset (passed with every call, east positive). A streak is the run of consecutive active days ending **today or yesterday**, so it doesn't reset before the user dictates today; the label nudges "Dictate today to keep it going". A DST change can move up to an hour of records across midnight, which we accept.
+5. **Insights** returns every local day in the range (7, 30, 90 or 365 days), zero-filled, oldest first; the UI draws ranges over 92 days as weekly columns ending today.
+6. **Reports** (`history_report`) contain only the record's id, kind, status, error code, text, the chosen category, an optional correct spelling and the app version: never audio, the audio path, the app, the URL or another record. **Until a support endpoint exists nothing is sent and nothing is written to disk** (plaintext record text outside the encrypted store would break the zero-retention rule); the command returns the payload with `sent: false` and the dialog says so. "Add to my dictionary" calls `Store::dictionary_add` with a correction (wrong word → right spelling) or, without a wrong word, a vocabulary entry; a duplicate is reported, not an error.
+7. **Clear history** deletes every record (including failed ones) and their `.wav.enc` files after a typed confirmation; dictionary, snippets and settings stay.
+**Revisit** when Commands (P3) store tool counts (the Activity tool chip reads an optional `toolCount` that the store doesn't fill yet) and when the support endpoint lands (P4/P10).
+
 ## ADR-0016: Importers and dictionary suggestions — accepted (2026-11-28)
 (Number chosen to stay clear of parallel P2 work; renumber on merge if needed.)
 **Context.** P2 ships importers (spec 4.5.4) and auto-suggestions on every OS (spec 4.5.1).

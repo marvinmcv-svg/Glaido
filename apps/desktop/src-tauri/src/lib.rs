@@ -10,6 +10,7 @@ mod personal_cmds;
 mod secrets;
 mod settings;
 mod setup_cmds;
+mod stats_cmds;
 
 use std::sync::Arc;
 
@@ -227,6 +228,10 @@ pub fn run() {
             personal_cmds::snippets_add,
             personal_cmds::snippets_update,
             personal_cmds::snippets_delete,
+            stats_cmds::stats_home,
+            stats_cmds::stats_insights,
+            stats_cmds::history_clear_all,
+            stats_cmds::history_report,
             setup_cmds::settings_get,
             setup_cmds::settings_set_languages,
             setup_cmds::settings_set_microphone,

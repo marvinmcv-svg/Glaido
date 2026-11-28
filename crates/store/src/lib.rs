@@ -506,5 +506,8 @@ pub fn local_date(ms: i64, utc_offset_minutes: i32) -> String {
 mod personal;
 pub use personal::{DictionaryEntry, PersonalError, SnippetEntry};
 
+mod stats;
+pub use stats::{DayStats, HomeStats, Insights, InsightsRange, TYPING_WPM};
+
 #[cfg(test)]
 mod tests;
