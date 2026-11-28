@@ -355,3 +355,174 @@ select,
   gap: var(--space-2);
   padding: var(--space-3) 0;
 }
+
+/* Dictionary and Snippets (spec 4.5.1, 4.5.2) */
+.personal .lead {
+  max-width: 640px;
+  margin: 0 0 var(--space-4);
+}
+.personal-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.personal-head .input {
+  flex: 1;
+  margin: 0;
+}
+.confirm-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+}
+.confirm-bar span {
+  flex: 1;
+}
+.editor-card {
+  margin-bottom: var(--space-3);
+}
+.items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--border-default);
+}
+.item:last-child {
+  border-bottom: 0;
+}
+.item.editing {
+  display: block;
+  padding: var(--space-3) 0;
+}
+.item-main {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  padding: var(--space-3) 0;
+  cursor: pointer;
+}
+.item-main:focus-visible,
+.item-delete:focus-visible,
+.segmented button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+.item-main .arrow {
+  color: var(--text-muted);
+}
+.item-delete {
+  visibility: hidden;
+  background: none;
+  border: 0;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+}
+.item:hover .item-delete,
+.item:focus-within .item-delete {
+  visibility: visible;
+}
+.item-delete:hover {
+  color: var(--text-default);
+  background: var(--bg-tertiary);
+}
+.item-confirm {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.snippet-trigger {
+  flex: none;
+  font-weight: 600;
+}
+.snippet-preview {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.editor {
+  display: grid;
+  gap: var(--space-2);
+}
+.editor p {
+  margin: 0;
+}
+.editor-fields.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+.field {
+  display: grid;
+  font-size: 13px;
+}
+.field .input {
+  margin-top: var(--space-1);
+  margin-bottom: 0;
+}
+.field textarea {
+  resize: vertical;
+}
+.field-label {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+}
+.counter {
+  font-variant-numeric: tabular-nums;
+}
+.counter.over {
+  color: var(--text-default);
+  font-weight: 600;
+}
+.segmented {
+  display: inline-flex;
+  justify-self: start;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.segmented button {
+  background: none;
+  border: 0;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  padding: var(--space-1) var(--space-3);
+  cursor: pointer;
+}
+.segmented button[aria-checked="true"] {
+  background: var(--bg-tertiary);
+  color: var(--text-default);
+}
+.tag-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+.editor-actions {
+  display: flex;
+  gap: var(--space-2);
+}
