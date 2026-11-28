@@ -6286,6 +6286,8 @@ name = "vocalis-desktop"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "chrono",
+ "iana-time-zone",
  "keyring",
  "rand 0.8.8",
  "reqwest 0.12.28",

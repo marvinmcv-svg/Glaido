@@ -5,6 +5,7 @@ mod adapters;
 mod auth;
 mod engine;
 mod history_cmds;
+mod personal_cmds;
 mod secrets;
 mod settings;
 mod setup_cmds;
@@ -216,6 +217,15 @@ pub fn run() {
             history_cmds::history_delete,
             history_cmds::history_audio,
             history_cmds::history_copy,
+            personal_cmds::dictionary_list,
+            personal_cmds::dictionary_add,
+            personal_cmds::dictionary_update,
+            personal_cmds::dictionary_delete,
+            personal_cmds::dictionary_delete_all,
+            personal_cmds::snippets_list,
+            personal_cmds::snippets_add,
+            personal_cmds::snippets_update,
+            personal_cmds::snippets_delete,
             setup_cmds::settings_get,
             setup_cmds::settings_set_languages,
             setup_cmds::settings_set_microphone,
