@@ -1,0 +1,45 @@
+[package]
+name = "vocalis-desktop"
+description = "Vocalis desktop app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "vocalis_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+base64 = "0.22"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+iana-time-zone = "0.1"
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
+rand = "0.8"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde.workspace = true
+serde_json.workspace = true
+sha2 = "0.10"
+tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
+tauri-plugin-deep-link = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+vocalis-audio = { path = "../../../crates/audio", features = ["capture"] }
+vocalis-client = { path = "../../../crates/client" }
+vocalis-context = { path = "../../../crates/context", features = ["os"] }
+vocalis-core.workspace = true
+vocalis-import = { path = "../../../crates/import" }
+vocalis-inject = { path = "../../../crates/inject", features = ["os"] }
+vocalis-input = { path = "../../../crates/input", features = ["listen"] }
+vocalis-session = { path = "../../../crates/session" }
+vocalis-store = { path = "../../../crates/store" }
+
+[dev-dependencies]
+tempfile = "3"

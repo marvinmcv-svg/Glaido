@@ -1,0 +1,18 @@
+.git
+target
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+apps/webapp
+e2e
+docs
+supabase
+# The desktop app's manifest is needed as a workspace member; its frontend is not.
+apps/desktop/*
+!apps/desktop/src-tauri
+apps/desktop/src-tauri/icons
+apps/desktop/src-tauri/gen
+# Only the prompts package is compiled into Rust (crates/core embeds it).
+packages/*
+!packages/prompts

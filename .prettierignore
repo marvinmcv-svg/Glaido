@@ -1,0 +1,12 @@
+docs/MASTER_PROMPT.md
+pnpm-lock.yaml
+target/
+dist/
+.next/
+apps/desktop/src-tauri/gen/
+docs/
+apps/webapp/tsconfig.json
+apps/webapp/next-env.d.ts
+apps/desktop/src-tauri/icons/
+.turbo/
+.claude/

@@ -1,0 +1,187 @@
+/* Vocalis UI primitives. Requires @vocalis/design-tokens/tokens.css. */
+.vc-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font: 500 14px/1 var(--font-sans);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--motion-ease-out),
+    border-color var(--motion-fast) var(--motion-ease-out);
+}
+.vc-button--md {
+  height: 36px;
+  padding: 0 var(--space-4);
+}
+.vc-button--sm {
+  height: 28px;
+  padding: 0 var(--space-3);
+  font-size: 13px;
+}
+.vc-button--primary {
+  background: var(--button-primary);
+  color: var(--button-primary-text);
+}
+.vc-button--primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.vc-button--primary:active:not(:disabled) {
+  background: var(--accent-pressed);
+}
+.vc-button--attention {
+  background: var(--button-attention);
+  color: var(--button-attention-text);
+}
+.vc-button--ghost {
+  background: transparent;
+  color: var(--text-default);
+  border-color: var(--border-default);
+}
+.vc-button--ghost:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+.vc-button:disabled {
+  background: var(--button-disabled);
+  color: var(--button-disabled-text);
+  cursor: not-allowed;
+}
+
+:where(.vc-button, .vc-switch):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.vc-card {
+  background: var(--bg-card);
+  color: var(--text-default);
+  font-family: var(--font-sans);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+}
+
+.vc-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  padding: 0;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-tertiary);
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--motion-ease-out);
+}
+.vc-switch[data-checked] {
+  background: var(--accent-base);
+  border-color: var(--accent-base);
+}
+.vc-switch:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.vc-switch__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--neutral-0);
+  transition: transform var(--motion-fast) var(--motion-ease-out);
+}
+.vc-switch[data-checked] .vc-switch__thumb {
+  transform: translateX(16px);
+}
+
+.vc-stat__label {
+  color: var(--text-muted);
+  font: 500 12px/1.4 var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.vc-stat__value {
+  font: 600 28px/1.2 var(--font-mono);
+  margin-top: var(--space-1);
+}
+.vc-stat__hint {
+  color: var(--text-subtle);
+  font: 400 13px/1.4 var(--font-sans);
+  margin-top: var(--space-1);
+}
+
+.vc-keys {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+.vc-keycap {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-default);
+  font: 500 12px/1 var(--font-mono);
+}
+
+.vc-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 40px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--bg-overlay-voice);
+  color: var(--neutral-50);
+  border: 1px solid #ffffff1a;
+  font: 500 13px/1 var(--font-sans);
+  user-select: none;
+}
+.vc-pill__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--agentic-activity);
+}
+.vc-pill[data-state="processing"] .vc-pill__dot {
+  animation: vc-pulse 1s ease-in-out infinite;
+}
+.vc-pill[data-state="slow"] .vc-pill__dot,
+.vc-pill[data-state="limit"] .vc-pill__dot {
+  background: var(--status-warning);
+}
+.vc-pill[data-state="error"] .vc-pill__dot {
+  background: var(--alert-error);
+}
+.vc-pill__wave {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 24px;
+}
+.vc-pill__bar {
+  width: 3px;
+  border-radius: 2px;
+  background: var(--agentic-activity);
+  transition: height 60ms linear;
+}
+@keyframes vc-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vc-pill[data-state="processing"] .vc-pill__dot {
+    animation: none;
+  }
+  .vc-pill__bar {
+    transition: none;
+  }
+}

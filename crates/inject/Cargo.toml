@@ -1,0 +1,18 @@
+[package]
+name = "vocalis-inject"
+description = "Vocalis paste injection: clipboard save/restore and synthetic paste"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+default = []
+# Real clipboard (arboard) and synthetic keystrokes (enigo).
+os = ["dep:arboard", "dep:enigo"]
+
+[dependencies]
+arboard = { version = "3", optional = true }
+enigo = { version = "0.5", optional = true }
+thiserror.workspace = true
+vocalis-core.workspace = true

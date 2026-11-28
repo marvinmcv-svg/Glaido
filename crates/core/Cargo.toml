@@ -1,0 +1,15 @@
+[package]
+name = "vocalis-core"
+description = "Vocalis domain logic: gestures, formatting pipeline, dictionary, snippets"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest = "1"
+serde_json.workspace = true
