@@ -14,6 +14,7 @@ import {
 } from "./personal";
 import { Counter, DeleteControl, TagPicker } from "./PersonalParts";
 import { usePersonal } from "./usePersonal";
+import { ImportDialog, DictionarySuggestions } from "./Import";
 
 /** The Dictionary page (spec 4.5.1): vocabulary words and corrections. */
 export function Dictionary() {
@@ -22,6 +23,7 @@ export function Dictionary() {
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<string | null>(null); // an id, or "new"
   const [confirmAll, setConfirmAll] = useState(false);
+  const [importing, setImporting] = useState(false);
   const shown = filterEntries(entries, query);
 
   const save = async (d: EntryDraft, id: string | null) => {
@@ -68,6 +70,9 @@ export function Dictionary() {
         <Button onClick={() => setEditing("new")} disabled={editing === "new"}>
           Add word
         </Button>
+        <Button variant="ghost" onClick={() => setImporting(true)}>
+          Import
+        </Button>
         {entries.length > 0 ? (
           <Button variant="ghost" onClick={() => setConfirmAll(true)} disabled={confirmAll}>
             Delete all words
@@ -91,6 +96,8 @@ export function Dictionary() {
           </Button>
         </div>
       ) : null}
+      {importing ? <ImportDialog onClose={() => setImporting(false)} /> : null}
+      <DictionarySuggestions />
       {error ? (
         <p role="alert" className="error-text">
           {error}

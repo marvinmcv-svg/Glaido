@@ -13,6 +13,7 @@ import {
 } from "./personal";
 import { Counter, DeleteControl, TagPicker } from "./PersonalParts";
 import { usePersonal } from "./usePersonal";
+import { ImportDialog } from "./Import";
 
 /** The Snippets page (spec 4.5.2): say a trigger, get saved text. */
 export function Snippets() {
@@ -26,6 +27,7 @@ export function Snippets() {
   const snippets = items ?? [];
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<string | null>(null); // an id, or "new"
+  const [importing, setImporting] = useState(false);
   const shown = filterSnippets(snippets, query);
 
   const save = async (d: SnippetDraft, id: string | null) => {
@@ -67,10 +69,14 @@ export function Snippets() {
         <Button onClick={() => setEditing("new")} disabled={editing === "new"}>
           Add snippet
         </Button>
+        <Button variant="ghost" onClick={() => setImporting(true)}>
+          Import
+        </Button>
       </div>
       {isPreview ? (
         <p className="muted">Browser preview: snippets are kept only until you reload.</p>
       ) : null}
+      {importing ? <ImportDialog onClose={() => setImporting(false)} /> : null}
       {error ? (
         <p role="alert" className="error-text">
           {error}

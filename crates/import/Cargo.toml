@@ -1,0 +1,19 @@
+[package]
+name = "vocalis-import"
+description = "Vocalis importers: dictionary and snippets from other tools' user-exportable files"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+csv = "1"
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+vocalis-core.workspace = true
+yaml-rust2 = "0.10"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
+[dev-dependencies]
+proptest = "1"

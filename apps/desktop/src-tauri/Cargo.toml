@@ -35,6 +35,7 @@ vocalis-audio = { path = "../../../crates/audio", features = ["capture"] }
 vocalis-client = { path = "../../../crates/client" }
 vocalis-context = { path = "../../../crates/context", features = ["os"] }
 vocalis-core.workspace = true
+vocalis-import = { path = "../../../crates/import" }
 vocalis-inject = { path = "../../../crates/inject", features = ["os"] }
 vocalis-input = { path = "../../../crates/input", features = ["listen"] }
 vocalis-session = { path = "../../../crates/session" }

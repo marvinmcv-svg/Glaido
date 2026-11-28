@@ -26,6 +26,19 @@ Method: §3.2 of the master prompt. Columns: `ID | Question | Conclusion | Evide
 | L-018 | Q9 site IA | Home, pricing, business, about, docs, use-cases, comparisons, extensions, legal, trust center | AUDIT §4.13 | observed (audit) | medium | Re-verify with R1 capture |
 | L-019 | Q10 platforms | macOS 13+, Windows 11, Linux .deb/.rpm (Wayland and X11), iOS 18+, Android | AUDIT §4.0, §4.10–4.11 | observed (audit) | medium | — |
 
+## Third-party import formats (spec 4.5.4)
+
+These rows are about *other* tools' user-facing files, which our importers (`crates/import`) read. Sources are each vendor's public documentation or the file the user exports themselves; we never read those apps' private storage or internals. All test fixtures are written by us. Checked 2026-11-28.
+
+| ID | Question | Conclusion | Evidence | Type | Confidence | Unknowns |
+|---|---|---|---|---|---|---|
+| IMP-01 | Espanso match file | YAML with `matches:` items holding `trigger` or `triggers` and `replace` (or `markdown`/`html`/`form`/`image_path`); `vars` and `global_vars` with `name`, `type`, `params`; `{{name}}` in the text; `$\|$` marks the cursor | Espanso public docs (match syntax, variables) | public docs | high | Exhaustive list of variable types; we skip any type we don't map |
+| IMP-02 | TextExpander CSV | A group exported as CSV has rows `abbreviation,content,label`; content holds `%`-macros (`%Y`, `%m`, `%d`, `%H`, `%M`, `%clipboard`, `%\|`, `%fill…%`, `%key:…%`, `%snippet:…%`, `%@…` date math) | TextExpander public help (export group as CSV, macro reference) | public docs | medium | Whether every export writes a header row (we accept both); full macro list (unknown `%` sequences are kept as text) |
+| IMP-03 | Alfred snippets | `.alfredsnippets` is a zip of one JSON per snippet `{"alfredsnippet":{"snippet","uid","name","keyword"}}` plus `info.plist` with `snippetkeywordprefix`/`snippetkeywordsuffix`; placeholders `{clipboard}`, `{clipboard:N}`, `{date}`, `{time}`, `{datetime}`, `{cursor}`, `{random…}`, `{snippet:…}` | Alfred public help (snippets, dynamic placeholders, sharing collections) | public docs | medium | Exact date-arithmetic syntax (we skip any `+`/`-` offset); other plist keys ignored |
+| IMP-04 | Raycast snippets | "Export Snippets" writes a JSON array of `{name, text, keyword}`; placeholders `{clipboard}`, `{date}`, `{time}`, `{datetime}`, `{day}` (with `format=`/`offset=`), `{cursor}`, `{selection}`, `{argument}`, `{uuid}`, `{snippet}`, `\|` modifiers | Raycast public manual (Snippets, dynamic placeholders) | public docs | medium | Full placeholder list (unknown names are kept as text) |
+| IMP-05 | Wispr Flow dictionary/snippets | **Import** format documented: dictionary `.csv`, 1 column (word) or 2 (`misspelling,correction`), no header, empty fields dropped, >2 non-empty fields skipped, 60/4,000 char limits; snippets `.json` array of `{name, text}`; 3 MB, 1,000 entries | docs.wisprflow.ai "How do I bulk import dictionary items and snippets" | public docs | high | **Export format UNKNOWN**: no documented export. We read the documented import layout (our limits apply: 50 chars per word) |
+| IMP-06 | Superwhisper vocabulary | Has a CSV import ("Import vocabulary") and a CLI, but the CSV columns are not described in the public docs and the on-disk settings are private | superwhisper.com/docs (Vocabulary, backing up settings) | public docs | low | **Format UNKNOWN.** We accept a conservative CSV (1 column = word, 2 = `original,replacement`, optional header) and do not read the app's settings files |
+
 ## Checklist status
 
 | Q | Status |
