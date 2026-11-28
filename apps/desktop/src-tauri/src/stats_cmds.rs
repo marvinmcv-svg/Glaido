@@ -7,11 +7,12 @@
 //! endpoint exists, this command sends the same payload. See ADR-0013.
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Manager, Runtime, State};
-use vocalis_core::dictionary::Entry;
+use tauri::{AppHandle, Emitter, Manager, Runtime, State};
+use vocalis_core::dictionary::{Entry, EntryError};
 use vocalis_store::{HomeStats, Insights, InsightsRange, PersonalError, Record};
 
 use crate::engine::EngineHandle;
+use crate::personal_cmds;
 
 fn engine<R: Runtime>(app: &AppHandle<R>) -> Result<State<'_, EngineHandle>, String> {
     app.try_state::<EngineHandle>()
@@ -145,10 +146,16 @@ pub fn history_report<R: Runtime>(
             None => note = Some("Type the right spelling to add it to your dictionary.".to_owned()),
             Some(entry) => match store.dictionary_add(entry, now_ms()) {
                 Ok(_) => added = true,
-                Err(PersonalError::Entry(e)) => note = Some(e.to_string()),
-                Err(e) => return Err(e.to_string()),
+                Err(PersonalError::Entry(EntryError::Duplicate)) => note = Some("it's already there.".to_owned()),
+                Err(e @ PersonalError::Entry(_)) => note = Some(personal_cmds::error_message(&e)),
+                Err(e) => return Err(personal_cmds::error_message(&e)),
             },
         }
+    }
+    drop(store);
+    if added {
+        // The Dictionary page refreshes on this, as after its own changes.
+        let _ = app.emit_to("main", personal_cmds::CHANGED_EVENT, ());
     }
     Ok(ReportResult {
         payload,
