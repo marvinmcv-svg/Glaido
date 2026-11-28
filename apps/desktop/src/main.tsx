@@ -83,7 +83,12 @@ function App() {
                   <div>Preview the dictation bar</div>
                   <div className="muted">Shows the bar without recording anything.</div>
                 </div>
-                <Button variant="ghost" onClick={() => isTauri() && invoke("toggle_bar")}>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    if (isTauri()) void invoke("toggle_bar");
+                  }}
+                >
                   Toggle bar
                 </Button>
               </div>

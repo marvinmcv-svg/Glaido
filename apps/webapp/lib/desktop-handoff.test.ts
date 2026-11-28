@@ -29,13 +29,13 @@ function deps(stored: { userId: string; challenge: string } | null): ExchangeDep
   const consumed: string[] = [];
   return {
     consumed,
-    consume: vi.fn(async (h: string) => {
+    consume: vi.fn((h: string) => {
       consumed.push(h);
       const s = stored;
       stored = null; // single use
-      return s;
+      return Promise.resolve(s);
     }),
-    mintSession: vi.fn(async () => session),
+    mintSession: vi.fn(() => Promise.resolve(session)),
   };
 }
 
@@ -107,7 +107,7 @@ describe("desktop handoff", () => {
 
   it("reports a server error when no session can be minted", async () => {
     const d = deps({ userId: "u1", challenge: CHALLENGE });
-    d.mintSession = vi.fn(async () => null);
+    d.mintSession = vi.fn(() => Promise.resolve(null));
     const verifier = VERIFIER;
     expect(await exchange({ code: newCode(), verifier }, d)).toMatchObject({ status: 500 });
   });
