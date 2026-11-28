@@ -205,3 +205,25 @@ cd apps/desktop && pnpm tauri dev
 **Not verified:** real lock screens (logind isn't running in this container; macOS and Windows need real machines), real suspend/resume. Both are in the P1 manual QA checklist §8.
 
 **P1 induced failures, all automated on Linux:** kill the app, drop the network (both ways), lock the screen (simulated), lose the microphone (unit tests).
+
+## 2026-11-28 — P2 first slice (four parallel agents): personalization, Home, Insights, Palette
+
+**Shipped**
+- **Dictionary and Snippets (FE, DN):** encrypted tables in the History database (migration v2, tombstoned deletes ready for sync); commands and pages with 50-char counters, "Duplicate entry", tag picker, search on both sides, confirm / Shift-click / delete-all; snippets with multi-line content and a "Same trigger" chip. Every dictation and retry now sends dictionary, snippets and tags; `{clipboard}` is read only when an entry or snippet uses it. `{datetime}` is `YYYY-MM-DD HH:MM`, `{timezone}` the IANA name.
+- **Formatting (FE, AI):** rules table (migration v3) seeded with All apps and Email; one owner per app/site; All apps can't be disabled, Email can't be deleted; 500-char prompt; app picker with Most used (30 apps, 90 days, no browsers) and installed apps on Linux/macOS; six presets in our own wording; rules sent with every dictation (ADR-0017).
+- **Importers and suggestions (★):** `crates/import` for Espanso, TextExpander, Alfred, Raycast, Wispr Flow (documented bulk-import layout) and Superwhisper (plain CSV), with a preview report of every skip; `core::suggest` (2 fixes of a 4+ letter word within 30 days, permanent dismiss). Import button on both pages (ADR-0016).
+- **Home, Insights, Activity, Palette:** real stat cards (time saved at 40 wpm typing, weighted WPM, streak; ADR-0013); Insights page with words/commands per day and active days; Activity chips, privacy tooltip, report-a-record with "Add to my dictionary" (payload built, not sent: no support endpoint); Settings → Clear history; Ctrl/⌘+K palette with navigation, quick-add, settings, synonyms, theme toggle and transcript search (15).
+- Windows fix: `formatting.ts` renamed to `formattingRules.ts` (it clashed with `Formatting.tsx` on case-insensitive disks; caught by the Windows CI build).
+
+**Verified (Ubuntu 24.04 container, merged tree)**
+- 287 Rust tests, clippy, rustfmt; `turbo lint typecheck test build` 14/14; Prettier; clean-room scan.
+- **Exit checks:** formatting eval deterministic set 81/81 (gate ≥ 95%); snippet and dictionary unit tests; rule precedence tests (`crates/core/tests/rule_precedence.rs`).
+- Every new page driven in headless Chromium against mocked engine commands.
+
+**Not verified / open**
+- Live cleanup eval cases (17): need `ANTHROPIC_API_KEY` (`cargo run -p vocalis-evals -- --live`).
+- **Sync** to Supabase and the two-device round-trip E2E: not built (P2 exit check still open).
+- Suggestions only see fixes made inside Vocalis: reading another app's field after paste is a stub on every OS.
+- Website rules can't match until browser URLs are captured (P3). Formatting migration banner: nothing to migrate yet.
+- Nothing run inside the real Tauri app; macOS/Windows installed-app code not compiled here.
+- Terminal preset (Standard + Raw) capitalizes the first word of a command; pinned by an eval, noted in ADR-0017.

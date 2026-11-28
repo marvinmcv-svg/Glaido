@@ -34,15 +34,24 @@ A top-level row is ticked only when every part of it is done on every OS it appl
 - [ ] Custom tools: import, new-server wizard, watcher, policies, approval card (Enter, 60 s), 7 failure types, skills repo, weather demo
 - [ ] Agents beta
 - [ ] Dictionary: vocab, corrections, tags, 50-char limit, duplicates, search, shift-delete, delete all, suggestions, sync
+  - [x] Vocab, corrections, tags, 50-char limit, duplicates, search, Shift-delete, delete all: `crates/store/src/personal.rs` tests, `apps/desktop/src/personal.test.ts`, Chromium check.
+  - [ ] Suggestions: logic in `crates/core/src/suggest.rs`; reading the field after paste is a stub on every OS. Sync: not built.
 - [ ] Snippets: exact trigger, multiline, tags, sync
+  - [x] Exact trigger, multiline, tags, first wins: `crates/core/src/snippets.rs`, `crates/store/src/personal.rs` tests. Sync: not built.
 - [ ] Formatting: All apps / Email / custom, 3 styles, raw, 500-char prompt, inheritance, app+site uniqueness, toggles, most-used, migration notice, presets
+  - [x] Sections, styles, raw, 500-char prompt, inheritance, uniqueness, toggles, most-used, presets: `crates/store/src/rules.rs`, `crates/core/tests/rule_precedence.rs`, eval suite 81/81 deterministic.
+  - [ ] Website matching needs browser URL capture (P3); migration notice not built; Windows installed-apps list not built.
 - [ ] Importers
+  - [x] Espanso, TextExpander, Alfred, Raycast, Wispr Flow (bulk-import layout), Superwhisper (plain CSV): `crates/import` tests with original fixtures. Vendor export formats for Wispr Flow and Superwhisper are UNKNOWN (ledger IMP-05, IMP-06). Not tried with real exports.
 - [ ] Home stats, Activity (chips, search 50, playback, download, retry, report), encrypted storage, 100-audio retention, clear all, Insights
   - [x] Activity list by day, search (50 newest), copy, playback, download, Retry, delete: `crates/store/src/tests.rs` (`search_caps_at_50_newest_first`, `groups_by_local_day_and_pages`, `failed_then_retry_completes`), `apps/desktop/src/history.test.ts`; UI rendered in Chromium against mocked engine commands.
   - [x] Encrypted storage with integrity check and repair: `crates/store` (`corruption_restores_from_backup`).
   - [x] 100-audio retention: `audio_retention_keeps_newest_100_and_failed`.
-  - [ ] Chips, report, clear all, Home stats, Insights: P2.
+  - [x] Home stats, Insights, clear all: `crates/store/src/stats.rs` tests, `apps/desktop/src/stats.test.ts`, Chromium check.
+  - [ ] Chips: Command/Running shipped; tool count waits for Commands (P3). Report: payload built, not sent (no support endpoint).
 - [ ] Command Palette (navigation, quick-add, settings, synonyms, transcript search 15)
+  - [x] Navigation, settings rows, theme, synonyms, transcript search (15), keys: `apps/desktop/src/palette.test.ts`, Chromium check.
+  - [ ] Quick-add only navigates (no add-form anchor); rows for pages that don't exist yet (Extensions, tools, MCP) are absent.
 - [ ] Extensions framework + Spotlight, Color Picker, Clipboard, Text Expansion, Processes, Keep Awake (every rule in §4.7)
 - [ ] Settings: all tabs and keys (Appendix B), hotkey picker rules, per-platform hotkeys
   - [x] Per-platform hotkeys saved and applied: settings unit tests; Linux E2E with a saved custom shortcut (F8).
