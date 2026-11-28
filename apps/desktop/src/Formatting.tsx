@@ -21,7 +21,7 @@ import {
   targetsLabel,
   toggleApp,
   type UsedApp,
-} from "./formatting";
+} from "./formattingRules";
 import "./formatting.css";
 import { createPreviewBackend } from "./formattingPreview";
 

@@ -13,7 +13,7 @@ import {
   siteOwner,
   type Skipped,
   type UsedApp,
-} from "./formatting";
+} from "./formattingRules";
 
 const SAMPLE_PRESETS: Preset[] = [
   {

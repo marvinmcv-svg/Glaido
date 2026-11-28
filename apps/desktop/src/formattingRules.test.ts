@@ -13,7 +13,7 @@ import {
   saveBlocker,
   targetsLabel,
   toggleApp,
-} from "./formatting";
+} from "./formattingRules";
 import { createPreviewBackend } from "./formattingPreview";
 
 const rule = (over: Partial<FormattingRule>): FormattingRule => ({
